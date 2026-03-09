@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../utils/color_app.dart';
-import '../../../model/service_record/assign_ticket_model.dart'; // أو Controller خاص للعرض إن وجد
+import '../../../model/service_record/assign_ticket_model.dart';
 
 class PreviewTicketScreen extends StatelessWidget {
   final LstTicket data;
@@ -9,17 +9,24 @@ class PreviewTicketScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
-      appBar: AppBar(title: const Text('Preview Ticket')),
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: const Text('Preview Ticket'),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [
+            boxShadow: isDark
+                ? []
+                : [
               BoxShadow(
                 color: Colors.grey.withValues(alpha: 0.2),
                 blurRadius: 8,
@@ -30,129 +37,104 @@ class PreviewTicketScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ---------------- Header ----------------
               Row(
                 children: [
                   CircleAvatar(
                     radius: 25,
-                    backgroundColor: Color(0xFFE3F2FD),
+                    backgroundColor: ColorApp.primary.withValues(
+                      alpha: isDark ? 0.25 : 0.12,
+                    ),
                     child: Icon(
                       Icons.receipt_long,
                       color: ColorApp.primary,
                       size: 28,
                     ),
                   ),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Ticket No. (${data.intTicketId})',
-                      style: TextStyle(
-                        fontSize: 18,
+                      style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
                       ),
                     ),
                   ),
                 ],
               ),
-              const Divider(height: 30, thickness: 1),
 
-              // Ticket Type
+              const SizedBox(height: 12),
+              Divider(color: theme.dividerColor),
+
+              // ---------------- Fields ----------------
               _readOnlyField(
+                context,
                 label: 'Ticket Type',
                 icon: Icons.confirmation_number_outlined,
                 value: data.ticketInfo.strTicketType,
               ),
-
-              // Customer
               _readOnlyField(
+                context,
                 label: 'Customer Name',
                 icon: Icons.person_outline,
                 value: data.ticketInfo.strCustomerName,
               ),
-
-              // Caller Name
               _readOnlyField(
+                context,
                 label: 'Caller Name',
                 icon: Icons.phone_outlined,
                 value: data.ticketInfo.strCallerName,
               ),
-
-              // Received By
-              // _readOnlyField(
-              //   label: 'Received By',
-              //   icon: Icons.mail_outline,
-              //   value: "",
-              // ),
-
-              // Sub Product
               _readOnlyField(
+                context,
                 label: 'Sub Product Name',
                 icon: Icons.widgets_outlined,
                 value: data.ticketInfo.strSubProductName,
               ),
-
-              // Device Ref
               _readOnlyField(
+                context,
                 label: 'Device Ref. No.',
                 icon: Icons.devices_outlined,
                 value: data.ticketInfo.strCustomerRefNo,
               ),
-              const SizedBox(height: 20),
-              // const Text(
-              //   "Sub Product Location",
-              //   style: TextStyle(
-              //     fontSize: 18,
-              //     fontWeight: FontWeight.bold,
-              //     color: Color(0xFF1565C0),
-              //   ),
-              // ),
-              // const SizedBox(height: 10),
 
-              // Area
+              const SizedBox(height: 20),
+
               _readOnlyField(
+                context,
                 label: 'Area',
                 icon: Icons.map_outlined,
                 value: data.ticketInfo.strArea,
               ),
-
-              // Sub Area
               _readOnlyField(
+                context,
                 label: 'Sub Area',
                 icon: Icons.location_city_outlined,
                 value: data.ticketInfo.strSubArea,
               ),
-
-              // Zone
-              // _readOnlyField(
-              //   label: 'Zone',
-              //   icon: Icons.place_outlined,
-              //   value: "",
-              // ),
-
-              // Serial
               _readOnlyField(
+                context,
                 label: 'S/N',
                 icon: Icons.numbers_outlined,
                 value: data.ticketInfo.strSerialNo,
               ),
+
               const SizedBox(height: 20),
 
-              // Fault
               _readOnlyField(
+                context,
                 label: 'Fault',
                 icon: Icons.error_outline,
                 value: data.ticketInfo.strFault,
               ),
-
-              // Fault Note
               _readOnlyField(
+                context,
                 label: 'Fault Note',
                 icon: Icons.sticky_note_2_outlined,
                 value: data.ticketInfo.strFaultNote,
               ),
-
-              // Note
               _readOnlyField(
+                context,
                 label: 'Note',
                 icon: Icons.note_alt_outlined,
                 value: data.ticketInfo.strNots,
@@ -166,32 +148,44 @@ class PreviewTicketScreen extends StatelessWidget {
     );
   }
 
-  Widget _readOnlyField({
-    required String label,
-    required IconData icon,
-    required String value,
-  }) {
+  // ---------------- Read Only Field ----------------
+  Widget _readOnlyField(
+      BuildContext context, {
+        required String label,
+        required IconData icon,
+        required String value,
+      }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
         readOnly: true,
-        initialValue: value,
+        initialValue: value.isEmpty ? "—" : value,
+        style: theme.textTheme.bodyMedium,
         decoration: InputDecoration(
           labelText: label,
+          labelStyle: theme.textTheme.bodySmall,
           prefixIcon: Icon(icon, color: ColorApp.primary),
           filled: true,
-          fillColor: Colors.grey[50],
+          fillColor: isDark
+              ? theme.colorScheme.surface
+              : Colors.grey.shade50,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFBBDEFB)),
+            borderSide: BorderSide(color: theme.dividerColor),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFBBDEFB)),
+            borderSide: BorderSide(color: theme.dividerColor),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: ColorApp.primary, width: 1.5),
+            borderSide: BorderSide(
+              color: ColorApp.primary,
+              width: 1.5,
+            ),
           ),
         ),
       ),

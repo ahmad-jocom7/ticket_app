@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:ticket_app/ui/dashboard/screens/client_signature_screen.dart';
 
+import '../../../model/custody/custody_model.dart';
 import '../../../utils/color_app.dart';
 import '../../../controller/close_record_controller.dart';
 
@@ -25,13 +27,8 @@ class OpenServiceRecordScreen extends StatefulWidget {
 }
 
 class _OpenServiceRecordScreenState extends State<OpenServiceRecordScreen> {
-  bool isRepair = true;
-  String? selectedFault;
-  String? selectedContentUsed;
-
-  final TextEditingController repairNoteController = TextEditingController();
-  final TextEditingController oldVersionController = TextEditingController();
-  final TextEditingController newVersionController = TextEditingController();
+  final controller = ServiceRecordController.to;
+  final _formKey = GlobalKey<FormState>();
 
   @override
   Widget build(BuildContext context) {
@@ -58,9 +55,17 @@ class _OpenServiceRecordScreenState extends State<OpenServiceRecordScreen> {
             // 🔹 Section: Repair / Replace Details
             Text("Service Details", style: sectionTitleStyle),
             const SizedBox(height: 10),
-            _solutionSelector(),
+            GetBuilder<ServiceRecordController>(
+              builder: (logic) {
+                return _solutionSelector();
+              },
+            ),
             const SizedBox(height: 10),
-            _buildDynamicFields(),
+            GetBuilder<ServiceRecordController>(
+              builder: (logic) {
+                return _buildDynamicFields();
+              },
+            ),
 
             const SizedBox(height: 30),
 
@@ -70,20 +75,26 @@ class _OpenServiceRecordScreenState extends State<OpenServiceRecordScreen> {
               height: 50,
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  final controller = Get.put(ServiceRecordController());
-
-                  await controller.fetchUnsolvedReasons(
-                    widget.subProductFileId,
-                  );
-
+                  if (!_formKey.currentState!.validate()) return;
                   controller.serviceRecordId = widget.recordId;
                   controller.ticketId = widget.ticketId;
                   controller.tripTime = DateTime.now()
                       .toLocal()
                       .toString()
                       .split(' ')[0];
-                  controller.repairNote = repairNoteController.text;
-                  _showResolutionDialog(controller);
+                  controller.repairNote = controller.repairNoteController.text;
+
+                  if (controller.isRepair) {
+                    await controller.fetchUnsolvedReasons(
+                      widget.subProductFileId,
+                    );
+
+                    _showResolutionDialog(controller);
+                  } else {
+                    if (!controller.validateReplace()) return;
+
+                    Get.to(() => const ClientSignatureScreen(isReplace: true));
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ColorApp.primary,
@@ -109,12 +120,15 @@ class _OpenServiceRecordScreenState extends State<OpenServiceRecordScreen> {
   }
 
   Widget _ticketInfoCard() {
+    final theme = Theme.of(context);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         border: Border.all(color: ColorApp.primary.withValues(alpha: 0.25)),
         borderRadius: BorderRadius.circular(14),
-        color: Colors.white,
+        color: theme.cardColor,
+
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withValues(alpha: 0.05),
@@ -128,8 +142,12 @@ class _OpenServiceRecordScreenState extends State<OpenServiceRecordScreen> {
           Row(
             children: [
               CircleAvatar(
-                radius: 24,
-                backgroundColor: Color(0xFFE3F2FD),
+                radius: 25,
+                backgroundColor: ColorApp.primary.withValues(
+                  alpha: Theme.of(context).brightness == Brightness.dark
+                      ? 0.18
+                      : 0.1,
+                ),
                 child: Icon(
                   Icons.confirmation_number_outlined,
                   color: ColorApp.primary,
@@ -142,9 +160,8 @@ class _OpenServiceRecordScreenState extends State<OpenServiceRecordScreen> {
                   children: [
                     TextSpan(
                       text: "Ticket No. ",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                     TextSpan(
@@ -176,11 +193,17 @@ class _OpenServiceRecordScreenState extends State<OpenServiceRecordScreen> {
       children: [
         _solutionButton(
           label: "Repair",
-          selected: isRepair,
-          onTap: () => setState(() => isRepair = true),
+          selected: controller.isRepair,
+          onTap: () => controller.changeTap(true),
         ),
         // const SizedBox(width: 10),
-        // _solutionButton(label: "Replace", selected: !isRepair, onTap: () {}),
+        // _solutionButton(
+        //   label: "Replace",
+        //   selected: !controller.isRepair,
+        //   onTap: () {
+        //     controller.changeTap(false);
+        //   },
+        // ),
       ],
     );
   }
@@ -224,58 +247,113 @@ class _OpenServiceRecordScreenState extends State<OpenServiceRecordScreen> {
   }
 
   Widget _buildDynamicFields() {
-    if (isRepair) {
-      return _textInput(
-        "Repair Note",
-        controller: repairNoteController,
-        maxLines: 5,
+    if (controller.isRepair) {
+      return Form(
+        key: _formKey,
+        child: _textInput(
+          validator: (value) {
+            if (value!.isEmpty || value == null) {
+              return "please enter repair note";
+            }
+          },
+          "Repair Note",
+          controller: controller.repairNoteController,
+          maxLines: 5,
+        ),
       );
     } else {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _textInput("Repair Note", controller: repairNoteController),
           const SizedBox(height: 10),
-          _dropdownRow(
-            "Content Used",
-            ["Card Reader", "Display", "Cable"],
-            (val) => setState(() => selectedContentUsed = val),
-            selectedContentUsed,
+
+          _textInput(
+            "Old S/N",
+            keyboardType: TextInputType.number,
+            controller: controller.oldSerialNumber,
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.fit_screen_outlined),
+              onPressed: () async {
+                final result = await Get.to<String>(
+                  () => const BarcodeScannerScreen(),
+                );
+
+                if (result != null && result.isNotEmpty) {
+                  controller.oldSerialNumber.text = result;
+                }
+
+                // final result = await _scanBarcode(context);
+                // if (result != null && result.isNotEmpty) {
+                //   controller.oldSerialNumber.text = result;
+                // }
+              },
+            ),
           ),
-          const SizedBox(height: 10),
-          _snRow("Old S/N"),
-          _textInput("Old Version", controller: oldVersionController),
+
           _snRow("New S/N"),
-          _textInput("New Version", controller: newVersionController),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: _actionButton("Add Extra Content", ColorApp.primary),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _actionButton("List Added Content", ColorApp.primary),
-              ),
-            ],
+          _textInput(
+            "Note",
+            maxLines: 2,
+            controller: controller.repairNoteController,
           ),
         ],
       );
     }
   }
 
+  // Future<String?> _scanBarcode(BuildContext context) async {
+  //   String? scannedCode;
+  //   bool isScanned = false;
+  //
+  //   await Get.to(() => Scaffold(
+  //     backgroundColor: Colors.black,
+  //     appBar: AppBar(
+  //       title: const Text('Scan Barcode'),
+  //       backgroundColor: Colors.black,
+  //     ),
+  //     body: Stack(
+  //       children: [
+  //         MobileScanner(
+  //           onDetect: (BarcodeCapture capture) {
+  //             if (isScanned) return;
+  //
+  //             final barcodes = capture.barcodes;
+  //             if (barcodes.isNotEmpty) {
+  //               final code = barcodes.first.rawValue;
+  //               if (code != null && code.isNotEmpty) {
+  //                 isScanned = true;
+  //                 scannedCode = code;
+  //
+  //                 // ⏳ أعطي Flutter فريم واحد قبل الرجوع
+  //                 Future.microtask(() => Get.back());
+  //               }
+  //             }
+  //           },
+  //         ),
+  //         _ScannerOverlay(),
+  //       ],
+  //     ),
+  //   ));
+  //
+  //   return scannedCode;
+  // }
+
   InputDecoration _fieldDecoration(String label, String hint) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return InputDecoration(
       labelText: label,
       labelStyle: const TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w600,
-        color: Colors.black87,
+        // color: Colors.black87,
       ),
+
       hintText: hint,
-      hintStyle: const TextStyle(color: Colors.black38, fontSize: 13.5),
+      hintStyle: const TextStyle(fontSize: 13.5),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: isDark ? theme.colorScheme.surface : Colors.grey.shade50,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
@@ -294,28 +372,39 @@ class _OpenServiceRecordScreenState extends State<OpenServiceRecordScreen> {
   Widget _textInput(
     String label, {
     TextEditingController? controller,
+    TextInputType? keyboardType,
     int? maxLines = 1,
+    Widget? suffixIcon,
+    String? Function(String?)? validator,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: TextFormField(
+        validator: validator,
+        keyboardType: keyboardType,
         controller: controller,
         maxLines: maxLines,
-        style: const TextStyle(fontSize: 14.5, color: Colors.black87),
-        decoration: _fieldDecoration(label, "Enter $label"),
+        style: const TextStyle(fontSize: 14.5),
+        decoration: _fieldDecoration(
+          label,
+          "Enter $label",
+        ).copyWith(suffixIcon: suffixIcon),
       ),
     );
   }
 
   Widget _infoRow(String label, String value) {
+    final theme = Theme.of(context);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
+
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.black12.withValues(alpha: 0.1)),
+          // border: Border.all(color: Colors.black12.withValues(alpha: 0.1)),
           boxShadow: [
             BoxShadow(
               color: Colors.grey.withValues(alpha: 0.05),
@@ -332,7 +421,7 @@ class _OpenServiceRecordScreenState extends State<OpenServiceRecordScreen> {
                 label,
                 style: const TextStyle(
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  // color: Colors.black87,
                   fontSize: 14,
                 ),
               ),
@@ -343,7 +432,7 @@ class _OpenServiceRecordScreenState extends State<OpenServiceRecordScreen> {
                 value.isNotEmpty ? value : "—",
                 textAlign: TextAlign.right,
                 style: const TextStyle(
-                  color: Colors.black54,
+                  // color: Colors.black54,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -355,83 +444,38 @@ class _OpenServiceRecordScreenState extends State<OpenServiceRecordScreen> {
     );
   }
 
-  Widget _dropdownRow(
-    String label,
-    List<String> items,
-    ValueChanged<String?> onChanged,
-    String? selectedValue,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: DropdownButtonFormField<String>(
-        value: items.contains(selectedValue) ? selectedValue : null,
-        items: items
-            .map(
-              (item) => DropdownMenuItem(
-                value: item,
-                child: Text(item, style: const TextStyle(fontSize: 14.5)),
-              ),
-            )
-            .toList(),
-        onChanged: onChanged,
-        icon: const Icon(
-          Icons.keyboard_arrow_down_rounded,
-          color: Colors.black54,
-        ),
-        decoration: _fieldDecoration(label, "Select $label"),
-        dropdownColor: Colors.white,
-      ),
-    );
-  }
-
   Widget _snRow(String label) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 9,
-            child: _dropdownRow(
-              label,
-              ["0000000000", "1111111111"],
-              (val) {},
-              null,
-            ),
-          ),
-          const SizedBox(width: 6),
-          IconButton(
-            onPressed: () {
-              Get.snackbar(
-                "Scan",
-                "Scanning QR for $label...",
-                snackPosition: SnackPosition.BOTTOM,
-                backgroundColor: Colors.blue.shade100,
-              );
-            },
-            icon: Icon(Icons.qr_code_2, color: ColorApp.primary),
-          ),
-        ],
-      ),
-    );
-  }
+      child: Obx(() {
+        if (controller.isCustodyLoading.value) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-  Widget _actionButton(String text, Color color) {
-    return SizedBox(
-      height: 45,
-      child: ElevatedButton(
-        onPressed: () {},
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        child: Text(
-          text,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
+        if (controller.custodyList.isEmpty) {
+          return Text(
+            "No Serial Numbers Available",
+            style: TextStyle(color: Colors.red.shade400),
+          );
+        }
+
+        return DropdownButtonFormField<CustodyData>(
+          value: controller.selectedNewCustody,
+          items: controller.custodyList.map((item) {
+            return DropdownMenuItem<CustodyData>(
+              value: item,
+              child: Text(
+                item.serialNumber,
+                style: const TextStyle(fontSize: 14.5),
+              ),
+            );
+          }).toList(),
+          onChanged: (val) {
+            controller.selectedNewCustody = val;
+          },
+          decoration: _fieldDecoration(label, "Select Serial Number"),
+        );
+      }),
     );
   }
 }
@@ -442,280 +486,389 @@ void _showResolutionDialog(ServiceRecordController controller) {
   final TextEditingController noteController = TextEditingController();
 
   Get.dialog(
-    Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      backgroundColor: Colors.white,
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: StatefulBuilder(
-            builder: (context, setState) => Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 🔹 Title
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: ColorApp.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.build_circle_outlined,
-                        color: ColorApp.primary,
-                        size: 26,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    const Text(
-                      "Close Service Record",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
+    Builder(
+      builder: (context) {
+        final theme = Theme.of(context);
+        final isDark = theme.brightness == Brightness.dark;
 
-                const SizedBox(height: 18),
-                const Text(
-                  "Was the issue resolved?",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15.5,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 12),
+        return Center(
+          child: SizedBox(
+            child: Dialog(
+              insetPadding: const EdgeInsets.symmetric(horizontal: 10),
 
-                // 🔸 Toggle Buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => isSolved = true),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          height: 45,
-                          decoration: BoxDecoration(
-                            color: isSolved
-                                ? ColorApp.primary
-                                : Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            "Yes, Solved",
-                            style: TextStyle(
-                              color: isSolved ? Colors.white : Colors.black87,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => isSolved = false),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          height: 45,
-                          decoration: BoxDecoration(
-                            color: !isSolved
-                                ? Colors.red.shade800
-                                : Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            "Not Solved",
-                            style: TextStyle(
-                              color: !isSolved ? Colors.white : Colors.black87,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 20),
-
-                // 🔹 Dropdown + Note Field (if not solved)
-                if (!isSolved)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Obx(() {
-                        if (controller.isLoading.value) {
-                          return const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(8),
-                              child: CircularProgressIndicator(),
-                            ),
-                          );
-                        }
-
-                        final reasons =
-                            controller.unsolvedReason.value?.lookupData ?? [];
-                        return DropdownButtonFormField<String>(
-                          dropdownColor: Colors.white,
-
-                          isExpanded: true,
-                          value: selectedReason,
-
-                          decoration: InputDecoration(
-                            labelText: "Select Unsolved Reason",
-                            labelStyle: const TextStyle(
-                              fontWeight: FontWeight.w500,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(
-                                color: ColorApp.primary.withValues(alpha: 0.25),
-                                width: 1,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(10),
-                              ),
-                              borderSide: BorderSide(
-                                color: ColorApp.primary,
-                                width: 1.3,
-                              ),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 12,
-                            ),
-                          ),
-                          items: reasons
-                              .map(
-                                (r) => DropdownMenuItem(
-                                  value: r.intLookupId.toString(),
-                                  child: Text(r.strLookupText),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              backgroundColor: theme.dialogTheme.backgroundColor,
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: StatefulBuilder(
+                    builder: (context, setState) => Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 🔹 Title
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: ColorApp.primary.withValues(
+                                  alpha: isDark ? 0.25 : 0.1,
                                 ),
-                              )
-                              .toList(),
-                          onChanged: (val) =>
-                              setState(() => selectedReason = val),
-                        );
-                      }),
-
-                      const SizedBox(height: 12),
-
-                      // 🔸 Note Field
-                      TextFormField(
-                        controller: noteController,
-                        maxLines: 3,
-                        decoration: InputDecoration(
-                          labelText: "Unsolved Note",
-                          hintText: "Add a note explaining the issue...",
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(
-                              color: ColorApp.primary.withValues(alpha: 0.25),
-                              width: 1,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.build_circle_outlined,
+                                color: ColorApp.primary,
+                                size: 26,
+                              ),
                             ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
-                            borderSide: BorderSide(
-                              color: ColorApp.primary,
-                              width: 1.3,
+                            const SizedBox(width: 10),
+                            Text(
+                              "Close Service Record",
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
+                          ],
+                        ),
 
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
+                        const SizedBox(height: 18),
+                        Text(
+                          "Was the issue resolved?",
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 12),
+
+                        // 🔸 Toggle Buttons
+                        Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => isSolved = true),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  height: 45,
+                                  decoration: BoxDecoration(
+                                    color: isSolved
+                                        ? ColorApp.primary
+                                        : theme.colorScheme.surface,
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    "Yes, Solved",
+                                    style: TextStyle(
+                                      color: isSolved
+                                          ? Colors.white
+                                          : theme.textTheme.bodyMedium?.color,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => isSolved = false),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  height: 45,
+                                  decoration: BoxDecoration(
+                                    color: !isSolved
+                                        ? Colors.red.shade800
+                                        : theme.colorScheme.surface,
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    "Not Solved",
+                                    style: TextStyle(
+                                      color: !isSolved
+                                          ? Colors.white
+                                          : theme.textTheme.bodyMedium?.color,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // 🔹 Dropdown + Note Field
+                        if (!isSolved)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Obx(() {
+                                if (controller.isLoading.value) {
+                                  return const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(8),
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                }
+
+                                final reasons =
+                                    controller
+                                        .unsolvedReason
+                                        .value
+                                        ?.lookupData ??
+                                    [];
+
+                                return DropdownButtonFormField<String>(
+                                  dropdownColor:
+                                      theme.dialogTheme.backgroundColor,
+                                  isExpanded: true,
+                                  value: selectedReason,
+                                  decoration: InputDecoration(
+                                    labelText: "Select Unsolved Reason",
+                                    labelStyle: theme.textTheme.bodyMedium
+                                        ?.copyWith(fontWeight: FontWeight.w500),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide(
+                                        color: ColorApp.primary.withValues(
+                                          alpha: 0.25,
+                                        ),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(10),
+                                      ),
+                                      borderSide: BorderSide(
+                                        color: ColorApp.primary,
+                                        width: 1.3,
+                                      ),
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                  items: reasons
+                                      .map(
+                                        (r) => DropdownMenuItem(
+                                          value: r.intLookupId.toString(),
+                                          child: Text(
+                                            r.strLookupText,
+                                            style: theme.textTheme.bodyMedium,
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (val) =>
+                                      setState(() => selectedReason = val),
+                                );
+                              }),
+
+                              const SizedBox(height: 12),
+
+                              TextFormField(
+                                controller: noteController,
+                                maxLines: 5,
+                                style: theme.textTheme.bodyMedium,
+                                decoration: InputDecoration(
+                                  labelText: "Unsolved Note",
+                                  hintText:
+                                      "Add a note explaining the issue...",
+                                  labelStyle: theme.textTheme.bodyMedium,
+
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide(
+                                      color: ColorApp.primary.withValues(
+                                        alpha: 0.25,
+                                      ),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(10),
+                                    ),
+                                    borderSide: BorderSide(
+                                      color: ColorApp.primary,
+                                      width: 1.3,
+                                    ),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                        const SizedBox(height: 25),
+
+                        // 🔹 Actions
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Get.back(),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor:
+                                      theme.textTheme.bodyMedium?.color,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text(
+                                  "Cancel",
+                                  style: TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  if (!isSolved && selectedReason == null) {
+                                    Get.snackbar(
+                                      "Missing Reason ⚠️",
+                                      "Please select a reason before continuing.",
+                                      snackPosition: SnackPosition.TOP,
+                                      backgroundColor: isDark
+                                          ? Colors.orange.shade700
+                                          : Colors.yellow.shade100,
+                                      colorText: isDark
+                                          ? Colors.white
+                                          : Colors.black87,
+                                    );
+
+                                    return;
+                                  }
+
+                                  controller.serviceResult = isSolved ? 1 : 2;
+                                  controller.unsolvedReasonId = isSolved
+                                      ? 0
+                                      : int.parse(selectedReason ?? '0');
+                                  controller.unsolvedNote = isSolved
+                                      ? ''
+                                      : noteController.text.trim();
+
+                                  Get.back();
+                                  Get.to(() => const ClientSignatureScreen());
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: ColorApp.primary,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text(
+                                  "Confirm",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-
-                const SizedBox(height: 25),
-
-                // 🔹 Actions
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Get.back(),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          "Cancel",
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (!isSolved && selectedReason == null) {
-                            Get.snackbar(
-                              "Missing Reason ⚠️",
-                              "Please select a reason before continuing.",
-                              snackPosition: SnackPosition.TOP,
-                              backgroundColor: Colors.yellow.shade100,
-                              colorText: Colors.black87,
-                            );
-                            return;
-                          }
-
-                          controller.serviceResult = isSolved ? 1 : 2;
-                          controller.unsolvedReasonId = isSolved
-                              ? 0
-                              : int.parse(selectedReason ?? '0');
-                          controller.unsolvedNote = isSolved
-                              ? ''
-                              : noteController.text.trim();
-
-                          Get.back();
-                          Get.to(() => const ClientSignatureScreen());
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: ColorApp.primary,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          "Confirm",
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     ),
   );
+}
+
+class _ScannerOverlay extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          Container(color: Colors.black.withValues(alpha: 0.5)),
+
+          Center(
+            child: Container(
+              width: 260,
+              height: 160,
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                border: Border.all(color: Colors.greenAccent, width: 3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class BarcodeScannerScreen extends StatefulWidget {
+  const BarcodeScannerScreen({super.key});
+
+  @override
+  State<BarcodeScannerScreen> createState() => _BarcodeScannerScreenState();
+}
+
+class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
+  bool isScanned = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text('Scan Barcode'),
+        backgroundColor: Colors.black,
+      ),
+      body: Stack(
+        children: [
+          MobileScanner(
+            onDetect: (capture) {
+              if (isScanned) return;
+
+              final barcodes = capture.barcodes;
+              if (barcodes.isNotEmpty) {
+                final code = barcodes.first.rawValue;
+                if (code != null && code.isNotEmpty) {
+                  isScanned = true;
+
+                  // ⏳ رجّع النتيجة بعد frame
+                  Future.delayed(const Duration(milliseconds: 100), () {
+                    Navigator.of(context).pop(code);
+                  });
+                }
+              }
+            },
+          ),
+          _ScannerOverlay(),
+        ],
+      ),
+    );
+  }
 }

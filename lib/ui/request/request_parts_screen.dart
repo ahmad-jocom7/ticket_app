@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controller/request_parts_controller.dart';
 import '../../model/ticket/response_model.dart';
-import '../../utils/color_app.dart';
 
 class RequestPartsScreen extends StatelessWidget {
   RequestPartsScreen({super.key});
@@ -20,30 +19,34 @@ class RequestPartsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _inputField(
+              context: context, // ✅ changed
               title: "Part Number",
               controller: controller.partNumber,
               hint: "Enter part number",
             ),
             _inputField(
+              context: context,
               title: "Description",
               controller: controller.description,
               hint: "Enter description",
               maxLines: 3,
             ),
             _inputField(
+              context: context,
               title: "Customer Name",
               controller: controller.customerName,
               hint: "Enter customer name",
             ),
             _inputField(
+              context: context,
               title: "Branch",
               controller: controller.branch,
               hint: "Enter branch",
             ),
             const SizedBox(height: 10),
-
             Obx(() {
               return dropdownSearchField<LookupDatum>(
+                context: context, // ✅ changed
                 title: "Sub Product",
                 value: controller.selectedSubProduct.value,
                 items: controller.subProducts,
@@ -56,12 +59,12 @@ class RequestPartsScreen extends StatelessWidget {
                     controller.loadContents(item.intLookupId);
                   }
                 },
-
                 isLoading: controller.isLoadingSubProducts.value,
               );
             }),
             Obx(() {
               return dropdownSearchField<LookupDatum>(
+                context: context,
                 title: "Content",
                 value: controller.selectedContent.value,
                 items: controller.contents,
@@ -74,9 +77,9 @@ class RequestPartsScreen extends StatelessWidget {
                 isLoading: controller.isLoadingContents.value,
               );
             }),
-
             Obx(() {
               return dropdownSearchField<LookupDatum>(
+                context: context,
                 title: "From",
                 value: controller.selectedEmployee.value,
                 items: controller.employees,
@@ -95,33 +98,25 @@ class RequestPartsScreen extends StatelessWidget {
               return SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ColorApp.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
                   onPressed: controller.isSubmitting.value
                       ? null
                       : controller.submitRequest,
                   child: controller.isSubmitting.value
                       ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
                       : const Text(
-                          "Submit Request",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                    "Submit Request",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               );
             }),
@@ -131,29 +126,39 @@ class RequestPartsScreen extends StatelessWidget {
     );
   }
 
+  // =========================================================
+  // 🔹 Input Field (Theme-aware)
   Widget _inputField({
+    required BuildContext context, // ✅ changed
     required String title,
     required TextEditingController controller,
     required String hint,
     int maxLines = 1,
   }) {
+    final theme = Theme.of(context); // ✅ changed
+    final isDark = theme.brightness == Brightness.dark;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 18.0),
+      padding: const EdgeInsets.only(bottom: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 6),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: theme.cardColor,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.3)
+                      : Colors.black.withValues(alpha: 0.05),
                   blurRadius: 6,
                   offset: const Offset(0, 3),
                 ),
@@ -162,9 +167,11 @@ class RequestPartsScreen extends StatelessWidget {
             child: TextField(
               controller: controller,
               maxLines: maxLines,
+              style: theme.textTheme.bodyMedium, // ✅ changed
               decoration: InputDecoration(
                 hintText: hint,
-                hintStyle: const TextStyle(color: Colors.black45),
+                hintStyle: theme.textTheme.bodyMedium
+                    ?.copyWith(color: Colors.grey),
                 contentPadding: const EdgeInsets.all(14),
                 border: InputBorder.none,
               ),
@@ -174,8 +181,8 @@ class RequestPartsScreen extends StatelessWidget {
       ),
     );
   }
-
   Widget dropdownSearchField<T>({
+    required BuildContext context, // ✅ changed
     required String title,
     required T? value,
     required List<T> items,
@@ -185,75 +192,59 @@ class RequestPartsScreen extends StatelessWidget {
     bool Function(T, T)? compareFn,
     bool isLoading = false,
   }) {
+    final theme = Theme.of(context); // ✅ changed
+    final isDark = theme.brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 18.0),
+      padding: const EdgeInsets.only(bottom: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600), // ✅ changed
           ),
           const SizedBox(height: 6),
-
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: theme.cardColor, // ✅ changed
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.3)
+                      : Colors.black.withValues(alpha: 0.05),
                   blurRadius: 6,
                   offset: const Offset(0, 3),
                 ),
               ],
             ),
-
             child: DropdownSearch<T>(
               enabled: !isLoading,
-              suffixProps: DropdownSuffixProps(
-                dropdownButtonProps: DropdownButtonProps(
-                  iconClosed: isLoading
-                      ? SizedBox(
-                          height: 28,
-                          width: 28,
-                          child: const CircularProgressIndicator(),
-                        )
-                      : const Icon(Icons.arrow_drop_down),
-                ),
-              ),
               selectedItem: value,
               compareFn: compareFn ?? (a, b) => a == b,
-
-              items: (String? filter, _) {
+              items: (filter, _) {
                 return items.where((item) {
                   final text = display(item).toLowerCase();
-                  return filter == null || text.contains(filter.toLowerCase());
+                  return filter == null ||
+                      text.contains(filter.toLowerCase());
                 }).toList();
               },
               itemAsString: (item) => display(item),
               popupProps: PopupProps.dialog(
                 showSearchBox: true,
                 dialogProps: DialogProps(
-                  backgroundColor: Colors.white,
+                  backgroundColor: theme.cardColor, // ✅ changed
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                searchFieldProps: TextFieldProps(
-                  decoration: InputDecoration(
-                    hintText: "Search $title...",
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
                   ),
                 ),
               ),
               decoratorProps: DropDownDecoratorProps(
                 decoration: InputDecoration(
                   hintText: hint,
-                  hintStyle: const TextStyle(color: Colors.black45),
+                  hintStyle:
+                  theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 16,
@@ -261,7 +252,6 @@ class RequestPartsScreen extends StatelessWidget {
                   border: InputBorder.none,
                 ),
               ),
-
               onChanged: onChanged,
             ),
           ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../controller/accepted_tickets_controller.dart';
+import '../../../controller/accepted_tickets_home_controller.dart';
 import '../../../model/service_record/assign_ticket_model.dart';
 import '../../../utils/color_app.dart';
 import '../../../utils/snackbar.dart';
@@ -10,12 +10,12 @@ import '../screens/accepted_ticket_screen.dart';
 import '../screens/device_history_screen.dart';
 import '../screens/preview_ticket_screen.dart';
 
-class AcceptedTicketCard extends StatelessWidget {
+class AcceptedTicketHomeCard extends StatelessWidget {
   final LstTicket data;
 
-  AcceptedTicketCard({super.key, required this.data});
+  AcceptedTicketHomeCard({super.key, required this.data});
 
-  final controller = Get.find<AcceptedTicketController>();
+  final controller = Get.find<AcceptedTicketHomeController>();
 
   @override
   Widget build(BuildContext context) {
@@ -153,28 +153,28 @@ class AcceptedTicketCard extends StatelessWidget {
                           onPressed: controller.isOpening.value
                               ? null
                               : () async {
-                            /// اذا يوجد Record مفتوح وتريد فتح واحد جديد
-                            if (controller.hasOpenedRecord.value &&
-                                data.ticketInfo.intServiceRecordID == 0) {
-                              showWarning(
-                                "You must close the opened service record first",
-                              );
-                              return;
-                            }
+                                  /// اذا يوجد Record مفتوح وتريد فتح واحد جديد
+                                  if (controller.hasOpenedRecord.value &&
+                                      data.ticketInfo.intServiceRecordID == 0) {
+                                    showWarning(
+                                      "You must close the opened service record first",
+                                    );
+                                    return;
+                                  }
 
-                            if (data.ticketInfo.intServiceRecordID == 0) {
-                              await controller.openServiceRecord(
-                                data.intTicketId,
-                                data.ticketInfo.intSubProductFileId,
-                              );
-                            } else {
-                              controller.viewServiceRecord(
-                                data.ticketInfo.intServiceRecordID,
-                                data.intTicketId,
-                                data.ticketInfo.intSubProductFileId,
-                              );
-                            }
-                          },
+                                  if (data.ticketInfo.intServiceRecordID == 0) {
+                                    await controller.openServiceRecord(
+                                      data.intTicketId,
+                                      data.ticketInfo.intSubProductFileId,
+                                    );
+                                  } else {
+                                    controller.viewServiceRecord(
+                                      data.ticketInfo.intServiceRecordID,
+                                      data.intTicketId,
+                                      data.ticketInfo.intSubProductFileId,
+                                    );
+                                  }
+                                },
                           // onPressed: controller.isOpening.value
                           //     ? null
                           //     : () async {
@@ -216,8 +216,8 @@ class AcceptedTicketCard extends StatelessWidget {
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
-                            controller.hasOpenedRecord.value &&
-                                data.ticketInfo.intServiceRecordID == 0
+                                controller.hasOpenedRecord.value &&
+                                    data.ticketInfo.intServiceRecordID == 0
                                 ? Colors.grey
                                 : ColorApp.primary,
                             elevation: 0,
@@ -250,7 +250,6 @@ class AcceptedTicketCard extends StatelessWidget {
                     },
                   ),
                 ),
-
                 const SizedBox(height: 10),
 
                 if (data.ticketInfo.intServiceRecordID == 0)

@@ -115,3 +115,7 @@ const TextStyle regular12 = TextStyle(
   fontWeight: FontWeight.w400,
   fontFamily: fontFamily,
 );
+
+TextStyle themed(BuildContext context, TextStyle style) {
+  return style.copyWith(color: Theme.of(context).textTheme.bodyMedium?.color);
+}

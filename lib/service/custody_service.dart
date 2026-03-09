@@ -40,6 +40,7 @@ class CustodyService {
 
   static Future<bool> sendDeliveryRequest({
     required int custodyId,
+    required int toEmployee,
     required String description,
   }) async {
     final uri = Uri.parse(
@@ -55,7 +56,11 @@ class CustodyService {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({"custodyId": custodyId, "description": description}),
+        body: jsonEncode({
+          "toEmployee": toEmployee,
+          "custodyId": custodyId,
+          "description": description,
+        }),
       );
 
       log('✅ [Response ${response.statusCode}] => ${response.body}');

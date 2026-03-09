@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ticket_app/utils/my_shared_preferences.dart';
@@ -45,6 +46,8 @@ class AddTicketController extends GetxController {
   RxList<LookupDatum> serials = <LookupDatum>[].obs;
   RxList<LookupDatum> faults = <LookupDatum>[].obs;
 
+
+  final dropdownKey = GlobalKey<DropdownSearchState<LookupDatum>>();
 
   RxBool isLoading = false.obs;
   RxBool isLoadingSubmit = false.obs;
@@ -422,6 +425,7 @@ class AddTicketController extends GetxController {
       if (selectedSerial?.value.isEmpty ?? true) missingFields.add("Serial No");
       if (selectedArea?.value.isEmpty ?? true) missingFields.add("Area");
       if (selectedSubArea?.value.isEmpty ?? true) missingFields.add("Sub Area");
+      if (faultNote?.text.isEmpty ?? true) missingFields.add("Fault Note");
 
       if (missingFields.isNotEmpty) {
         String fields = missingFields.join(", ");
@@ -502,10 +506,10 @@ class AddTicketController extends GetxController {
 
   @override
   void onClose() {
-    callerName.dispose();
-    receivedBy.dispose();
-    faultNote.dispose();
-    note.dispose();
+    // callerName.dispose();
+    // receivedBy.dispose();
+    // faultNote.dispose();
+    // note.dispose();
     super.onClose();
   }
 
@@ -531,5 +535,8 @@ class AddTicketController extends GetxController {
     areas.clear();
     subAreas.clear();
     zone.value = null;
+
+    dropdownKey.currentState?.clear();
+
   }
 }

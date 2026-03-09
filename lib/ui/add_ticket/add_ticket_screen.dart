@@ -6,6 +6,7 @@ import '../../utils/color_app.dart';
 import '../../controller/add_ticket_controller.dart';
 import '../../model/ticket/response_model.dart';
 import '../../service/ticket_service.dart';
+import 'add_serial_number_dialog.dart';
 
 class AddTicketScreen extends StatelessWidget {
   AddTicketScreen({super.key});
@@ -14,12 +15,12 @@ class AddTicketScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: const Text(
-          'Add Ticket',
-        ),
+        title: const Text('Add Ticket'),
         actions: [
           TextButton(
             onPressed: controller.clearAll,
@@ -38,15 +39,17 @@ class AddTicketScreen extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withValues(alpha: 0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                boxShadow: isDark
+                    ? []
+                    : [
+                        BoxShadow(
+                          color: Colors.grey.withValues(alpha: 0.2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,20 +58,24 @@ class AddTicketScreen extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 25,
-                        backgroundColor: Color(0xFFE3F2FD),
+                        // ✅ changed: adaptive background
+                        backgroundColor: ColorApp.primary.withValues(
+                          alpha: Theme.of(context).brightness == Brightness.dark
+                              ? 0.18
+                              : 0.1,
+                        ),
                         child: Icon(
                           Icons.receipt_long,
                           color: ColorApp.primary,
                           size: 28,
                         ),
                       ),
+
                       SizedBox(width: 10),
                       Text(
                         'Ticket No. ( * )',
-                        style: TextStyle(
-                          fontSize: 20,
+                        style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
                         ),
                       ),
                     ],
@@ -97,7 +104,7 @@ class AddTicketScreen extends StatelessWidget {
                       value: controller.customers.firstWhereOrNull(
                         (e) =>
                             e.strLookupText ==
-                            controller.selectedCustomer?.value,
+                            controller.selectedCustomer!.value,
                       ),
                       onChanged: (p0) {
                         controller.onCustomerSelected(p0);
@@ -118,6 +125,8 @@ class AddTicketScreen extends StatelessWidget {
                     icon: Icons.mail_outline,
                     controller: controller.receivedBy,
                   ),
+                  LocationSectionWidget(),
+                  const SizedBox(height: 10),
                   Obx(
                     () => DropdownFieldWidget(
                       label: 'Device Ref. No.',
@@ -132,17 +141,58 @@ class AddTicketScreen extends StatelessWidget {
                     ),
                   ),
                   Obx(
-                        () => DropdownFieldWidget(
-                      readOnly: controller.lockFieldSerialNo.value,
-                      label: 'S/N',
-                      icon: Icons.numbers_outlined,
-                      value: controller.selectedSerial?.value.isEmpty == true
-                          ? null
-                          : controller.selectedSerial?.value,
-                      items: controller.serials
-                          .map((e) => e.strLookupText)
-                          .toList(),
-                      onChanged: controller.onSerialSelected,
+                    () => Row(
+                      children: [
+                        Expanded(
+                          child: DropdownFieldWidget(
+                            readOnly: controller.lockFieldSerialNo.value,
+                            label: 'S/N',
+                            icon: Icons.numbers_outlined,
+                            value:
+                                controller.selectedSerial?.value.isEmpty == true
+                                ? null
+                                : controller.selectedSerial?.value,
+                            items: controller.serials
+                                .map((e) => e.strLookupText)
+                                .toList(),
+                            onChanged: controller.onSerialSelected,
+                          ),
+                        ),
+                        if (controller.selectedTicketType?.value
+                                .toLowerCase() ==
+                            "internal ticket") ...[
+                          SizedBox(width: 5),
+                          SizedBox(
+                            height: 42,
+                            child: FilledButton(
+                              onPressed: () {
+                                Get.dialog(
+                                  AddSerialDialog(
+                                    customerId:
+                                        controller.selectedCustomer!.value,
+                                  ),
+                                );
+                              },
+                              style: FilledButton.styleFrom(
+                                backgroundColor: ColorApp.primary,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child: const Text(
+                                "Add",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   Obx(
@@ -161,14 +211,9 @@ class AddTicketScreen extends StatelessWidget {
                     ),
                   ),
 
-
-                  const SizedBox(height: 10),
-
-                  LocationSectionWidget(),
                   const SizedBox(height: 10),
 
                   // Serial
-
                   Obx(() {
                     return DropdownFieldWidget2(
                       key: ValueKey(controller.faults.length),
@@ -219,7 +264,7 @@ class DropdownFieldCustomerWidget extends StatelessWidget {
   final LookupDatum? value;
   final Function(LookupDatum?) onChanged;
 
-  const DropdownFieldCustomerWidget({
+  DropdownFieldCustomerWidget({
     super.key,
     required this.label,
     required this.icon,
@@ -228,12 +273,17 @@ class DropdownFieldCustomerWidget extends StatelessWidget {
   });
 
   final defaultPageSize = 20;
+  final controller = AddTicketController.to;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: DropdownSearch<LookupDatum>(
+        key: controller.dropdownKey,
         items: (String? filter, LoadProps? loadProps) async {
           final skip = loadProps?.skip ?? 0; // how many items already loaded
           final take =
@@ -268,7 +318,8 @@ class DropdownFieldCustomerWidget extends StatelessWidget {
           showSearchBox: true,
           disableFilter: true,
           dialogProps: DialogProps(
-            backgroundColor: Colors.white, // 🎨 لون خلفية الـ dialog
+            backgroundColor: Theme.of(context).dialogTheme.backgroundColor,
+
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
@@ -308,7 +359,8 @@ class DropdownFieldCustomerWidget extends StatelessWidget {
             labelText: label,
             prefixIcon: Icon(icon, color: ColorApp.primary),
             filled: true,
-            fillColor: Colors.grey[50],
+            fillColor: isDark ? theme.colorScheme.surface : Colors.grey.shade50,
+
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFBBDEFB)),
@@ -341,20 +393,26 @@ class LocationSectionWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withValues(alpha: 0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: isDark
+              ? []
+              : [
+                  BoxShadow(
+                    color: Colors.grey.withValues(alpha: 0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+
           border: Border.all(color: ColorApp.primary.withValues(alpha: 0.3)),
         ),
         child: Column(
@@ -523,6 +581,9 @@ class DropdownFieldWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: DropdownSearch<String>(
@@ -544,7 +605,7 @@ class DropdownFieldWidget extends StatelessWidget {
           fit: FlexFit.loose,
           showSearchBox: true,
           dialogProps: DialogProps(
-            backgroundColor: Colors.white, // 🎨 لون خلفية الـ dialog
+            backgroundColor: Theme.of(context).dialogTheme.backgroundColor,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
@@ -573,7 +634,8 @@ class DropdownFieldWidget extends StatelessWidget {
             labelText: label,
             prefixIcon: Icon(icon, color: ColorApp.primary),
             filled: true,
-            fillColor: Colors.grey[50],
+            fillColor: isDark ? theme.colorScheme.surface : Colors.grey.shade50,
+
             disabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFBBDEFB)),
@@ -624,6 +686,9 @@ class DropdownFieldWidget2 extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: DropdownSearch<LookupDatum>(
@@ -640,12 +705,8 @@ class DropdownFieldWidget2 extends StatelessWidget {
         },
 
         compareFn: (a, b) => a.intLookupId == b.intLookupId,
-        // ✅ مهم جدًا
         itemAsString: (LookupDatum? item) => item?.strLookupText ?? '',
-
-        // ✅
         selectedItem: value,
-
         onChanged: readOnly ? null : onChanged,
         enabled: items.isNotEmpty && !readOnly,
 
@@ -653,7 +714,7 @@ class DropdownFieldWidget2 extends StatelessWidget {
           fit: FlexFit.loose,
           showSearchBox: true,
           dialogProps: DialogProps(
-            backgroundColor: Colors.white, // 🎨 لون خلفية الـ dialog
+            backgroundColor: Theme.of(context).dialogTheme.backgroundColor,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
@@ -683,7 +744,7 @@ class DropdownFieldWidget2 extends StatelessWidget {
             labelText: label,
             prefixIcon: Icon(icon, color: ColorApp.primary),
             filled: true,
-            fillColor: Colors.grey[50],
+            fillColor: isDark ? theme.colorScheme.surface : Colors.grey.shade50,
             disabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFBBDEFB)),
@@ -731,16 +792,23 @@ class InputFieldWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
+        onTapOutside: (_) {
+          FocusManager.instance.primaryFocus?.unfocus();
+        },
         readOnly: readOnly,
         controller: controller,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon, color: ColorApp.primary),
           filled: true,
-          fillColor: Colors.grey[50],
+          fillColor: isDark ? theme.colorScheme.surface : Colors.grey.shade50,
+
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: Color(0xFFBBDEFB)),

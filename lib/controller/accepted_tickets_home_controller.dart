@@ -6,11 +6,11 @@ import 'package:ticket_app/ui/dashboard/screens/open_service_record_screen.dart'
 import '../model/service_record/assign_ticket_model.dart';
 import '../service/service_record_service.dart';
 
-class AcceptedTicketController extends GetxController {
-  static AcceptedTicketController get to =>
-      Get.isRegistered<AcceptedTicketController>()
-      ? Get.find<AcceptedTicketController>()
-      : Get.put(AcceptedTicketController());
+class AcceptedTicketHomeController extends GetxController {
+  static AcceptedTicketHomeController get to =>
+      Get.isRegistered<AcceptedTicketHomeController>()
+      ? Get.find<AcceptedTicketHomeController>()
+      : Get.put(AcceptedTicketHomeController());
 
   var isLoading = false.obs;
   var errorMessage = ''.obs;
@@ -29,14 +29,8 @@ class AcceptedTicketController extends GetxController {
   final TextEditingController ticketIdController = TextEditingController();
 
   // 📅 Date filters
-  DateTime fromDate = DateTime.now();
+  DateTime fromDate = DateTime.now().subtract(const Duration(days: 7));
   DateTime toDate = DateTime.now();
-
-  @override
-  void onInit() {
-    fetchAcceptedTickets();
-    super.onInit();
-  }
 
   Future<void> fetchAcceptedTickets() async {
     try {
@@ -86,32 +80,32 @@ class AcceptedTicketController extends GetxController {
     }
   }
 
-  Future<void> fetchAcceptedTicketsHome() async {
-    try {
-      isLoading(true);
-      errorMessage('');
-
-      log('🎬 Fetching accepted tickets from server...');
-
-      final result = await ServiceRecordService.getAcceptedTicketsByEmployee();
-
-      if (result != null) {
-        data = result.lstTicket;
-        log('✅ Data received successfully: ${result.toJson()}');
-      } else {
-        errorMessage('Failed to load accepted tickets.');
-        log('⚠️ No tickets found.');
-      }
-    } catch (e, stack) {
-      errorMessage('An error occurred: $e');
-      log('❌ Exception in fetchAcceptedTickets: $e');
-      log('$stack');
-    } finally {
-      update();
-
-      isLoading(false);
-    }
-  }
+  // Future<void> fetchAcceptedTicketsHome() async {
+  //   try {
+  //     isLoading(true);
+  //     errorMessage('');
+  //
+  //     log('🎬 Fetching accepted tickets from server...');
+  //
+  //     final result = await ServiceRecordService.getAcceptedTicketsByEmployee();
+  //
+  //     if (result != null) {
+  //       data = result.lstTicket;
+  //       log('✅ Data received successfully: ${result.toJson()}');
+  //     } else {
+  //       errorMessage('Failed to load accepted tickets.');
+  //       log('⚠️ No tickets found.');
+  //     }
+  //   } catch (e, stack) {
+  //     errorMessage('An error occurred: $e');
+  //     log('❌ Exception in fetchAcceptedTickets: $e');
+  //     log('$stack');
+  //   } finally {
+  //     update();
+  //
+  //     isLoading(false);
+  //   }
+  // }
 
   Future<void> openServiceRecord(int ticketId, int subProductFileId) async {
     try {

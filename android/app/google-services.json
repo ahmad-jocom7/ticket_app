@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "517250634620",
+    "project_id": "ticketing-app-9dc2a",
+    "storage_bucket": "ticketing-app-9dc2a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:517250634620:android:feda9467e328018cc00af9",
+        "android_client_info": {
+          "package_name": "com.jocom.ticket_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCN76ekTTPQ_jpPntTMekBDWAqhoe_RrW0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

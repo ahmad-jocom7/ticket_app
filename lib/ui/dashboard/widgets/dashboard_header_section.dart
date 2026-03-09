@@ -7,14 +7,22 @@ class HeaderSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context); // ✅ changed: access current theme
+    final isDark = theme.brightness == Brightness.dark; // ✅ changed
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        // ✅ changed: use cardColor instead of hard-coded white
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
+
+        // ✅ changed: adaptive shadow for light / dark
         boxShadow: [
           BoxShadow(
-            color: Colors.black12.withValues(alpha: 0.06),
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.35)
+                : Colors.black.withValues(alpha: 0.06),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -22,9 +30,11 @@ class HeaderSection extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // ICON ----------------------------------------------------
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
+              // ✅ unchanged logic: primary tint works in both themes
               color: ColorApp.primary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
@@ -34,14 +44,18 @@ class HeaderSection extends StatelessWidget {
               size: 28,
             ),
           ),
+
           const SizedBox(width: 16),
+
+          // TITLE ---------------------------------------------------
           Expanded(
             child: Text(
               "Your Ticket Overview",
+              // ✅ changed: theme-based text color
               style: TextStyle(
                 fontSize: 18,
-                color: ColorApp.primary,
                 fontWeight: FontWeight.w700,
+                color: theme.textTheme.bodyLarge?.color,
               ),
             ),
           ),

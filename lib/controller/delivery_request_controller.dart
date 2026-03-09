@@ -11,18 +11,19 @@ class DeliveryRequestController extends GetxController {
           ? Get.find<DeliveryRequestController>()
           : Get.put(DeliveryRequestController());
 
-  /// ======== STATES ==========
   var isLoading = false.obs;
   var isUpdating = false.obs;
   var errorMessage = "".obs;
 
-  /// ======== DATA ==========
   List<LstRequest> requests = [];
   int selectedIdForUpdate = 0;
 
-  /// ================================
-  /// 🔹 Fetch Delivery Requests
-  /// ================================
+  @override
+  void onInit() {
+    fetchDeliveryRequests();
+    super.onInit();
+  }
+
   Future<void> fetchDeliveryRequests() async {
     try {
       isLoading(true);

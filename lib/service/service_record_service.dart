@@ -6,10 +6,12 @@ import 'package:ticket_app/utils/my_shared_preferences.dart';
 
 import '../model/service_record/assign_ticket_model.dart';
 import '../model/service_record/open_service_record_model.dart';
+import '../model/service_record/ticket_history_model.dart';
+import '../model/ticket/history_device_model.dart';
 import '../model/ticket/response_model.dart';
 import '../model/service_record/service_record_model.dart';
 
-class TicketService {
+class ServiceRecordService {
   static Future<TicketResponse?> getAssignedTicketsByEmployee() async {
     final uri = Uri.parse(
       '${ApiUrl.baseUrl}${ApiUrl.getAssignedTickets}'
@@ -43,10 +45,15 @@ class TicketService {
     }
   }
 
-  static Future<TicketResponse?> getAcceptedTicketsByEmployee() async {
+  static Future<TicketResponse?> getAcceptedTicketsByEmployee({
+    int ticketId = 0,
+    String fromDate = '0',
+    String toDate = '0',
+  }) async {
     final uri = Uri.parse(
       '${ApiUrl.baseUrl}${ApiUrl.getAcceptedTickets}'
-      '?employeeId=${mySharedPreferences.getUserData()!.employeeId}&status=3&ticketId=0&fromDate=0&toDate=0',
+      '?employeeId=${mySharedPreferences.getUserData()!.employeeId}&status=3&ticketId=$ticketId&fromDate=$fromDate&toDate=$toDate',
+      // '?employeeId=9&status=3&ticketId=0&fromDate=05/12/2025&toDate=07/01/2026',
     );
 
     try {
@@ -65,6 +72,39 @@ class TicketService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return TicketResponse.fromJson(data);
+      } else {
+        log('⚠️ [Error] Invalid status: ${response.statusCode}');
+        return null;
+      }
+    } catch (e, stack) {
+      log('❌ [Exception] $e');
+      log('$stack');
+      return null;
+    }
+  }
+
+  static Future<TicketHistoryModel?> getTicketsHistoryByEmployee() async {
+    final uri = Uri.parse(
+      '${ApiUrl.baseUrl}${ApiUrl.getTicketsHistory}'
+      '?employeeId=${mySharedPreferences.getUserData()!.employeeId}',
+    );
+
+    try {
+      log('➡️ [GET] $uri');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      log('✅ [Response ${response.statusCode}] => ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return TicketHistoryModel.fromJson(data);
       } else {
         log('⚠️ [Error] Invalid status: ${response.statusCode}');
         return null;
@@ -126,7 +166,10 @@ class TicketService {
   }) async {
     final uri = Uri.parse('${ApiUrl.baseUrl}${ApiUrl.openServiceRecord}');
 
-    final body = jsonEncode({'intTicketId': ticketId, 'intEmployeeId': mySharedPreferences.getUserData()!.employeeId});
+    final body = jsonEncode({
+      'intTicketId': ticketId,
+      'intEmployeeId': mySharedPreferences.getUserData()!.employeeId,
+    });
 
     try {
       log('➡️ [POST] $uri');
@@ -160,10 +203,14 @@ class TicketService {
   static Future<bool> closeServiceRecord({
     required int serviceRecordId,
     required int ticketId,
-    // required int solution,
     required String repairNote,
+
     required int serviceResult,
+    required int intSolution,
+    int custodyId = 0,
+    String? oldSerial,
     int? unsolvedReasonId,
+    int? intuserId = 0,
     String? unsolvedNote,
     required String tripTime,
     required String clientSignature,
@@ -175,14 +222,18 @@ class TicketService {
       "intServiceRecordId": serviceRecordId,
       "intTicketId": ticketId,
       "intEmployeeId": mySharedPreferences.getUserData()!.employeeId,
-      "intSolution": 0,
+      "intSolution": intSolution,
       "strRepairNote": repairNote,
       "intServiceResult": serviceResult,
       if (unsolvedReasonId != 0) "intUnsolvedReasonId": unsolvedReasonId,
+      if (intuserId != 0) "intuserId": intuserId,
       if (unsolvedNote!.isNotEmpty) "strUnsolvedNote": unsolvedNote,
       "strTripTime": tripTime,
       "bytClientSig": clientSignature,
       "signature_name": signatureName,
+      if (custodyId != 0) "custodyId": custodyId,
+      if (oldSerial != null || oldSerial != "" || oldSerial!.isNotEmpty)
+        "oldSerial": oldSerial,
     });
 
     try {
@@ -202,7 +253,6 @@ class TicketService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        // Assuming the API returns {"status":200} or {"success":true}
         if ((data['status'] == 200) || (data['success'] == true)) {
           log('✅ Service record closed successfully.');
           return true;
@@ -286,7 +336,10 @@ class TicketService {
       return ResponseModel.fromJson({});
     }
   }
-  static Future<ServiceRecordResponse> getServiceRecordById(int serviceRecordId) async {
+
+  static Future<ServiceRecordResponse> getServiceRecordById(
+    int serviceRecordId,
+  ) async {
     final uri = Uri.parse(
       '${ApiUrl.baseUrl}${ApiUrl.getServiceRecordById}?ServiceRecordId=$serviceRecordId',
     );
@@ -316,5 +369,41 @@ class TicketService {
       return ServiceRecordResponse.fromJson({});
     }
   }
+  static Future<DeviceHistoryModel?> getDeviceHistory({
+    required int subProductFileId,
+    int count = 10,
+  }) async {
+    final uri = Uri.parse(
+      // '${ApiUrl.baseUrl}/api/ServiceRecord/GetDeviceHistory'
+      //     '?subProductFileId=$subProductFileId&count=$count',
+      'http://10.0.0.63:9096/api/ServiceRecord/GetDeviceHistory'
+          '?subProductFileId=$subProductFileId&count=$count',
+    );
 
+    try {
+      log('➡️ [GET] $uri');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      log('✅ [Response ${response.statusCode}] => ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return DeviceHistoryModel.fromJson(data);
+      } else {
+        log('⚠️ [Error] Invalid status: ${response.statusCode}');
+        return null;
+      }
+    } catch (e, stack) {
+      log('❌ [Exception] $e');
+      log('$stack');
+      return null;
+    }
+  }
 }

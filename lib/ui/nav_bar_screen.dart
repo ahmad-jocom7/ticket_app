@@ -13,8 +13,10 @@ class NavBarScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return GetBuilder<MainController>(
-      builder: (context) {
+      builder: (_) {
         return PopScope(
           canPop: false,
           onPopInvokedWithResult: (didPop, result) async {
@@ -24,41 +26,50 @@ class NavBarScreen extends StatelessWidget {
               return;
             }
             final shouldExit = await showExitDialog();
-
             if (shouldExit == true) {
               SystemNavigator.pop();
             }
           },
           child: Scaffold(
             body: controller.screen[controller.selected],
+
+            // 🔹 Bottom Navigation
             bottomNavigationBar: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardColor,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black12.withValues(alpha: 0.06),
+                    color: Colors.black.withValues(alpha: 0.06),
                     blurRadius: 8,
                     offset: const Offset(0, -2),
                   ),
                 ],
               ),
               child: BottomNavigationBar(
-                backgroundColor: Colors.white,
+                backgroundColor: theme.cardColor,
                 currentIndex: controller.selected,
                 type: BottomNavigationBarType.fixed,
-                elevation: 8,
+                elevation: 0,
+
                 selectedItemColor: ColorApp.primary,
-                unselectedItemColor: const Color(0xffA0A0A0),
+                unselectedItemColor:
+                theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+
                 selectedLabelStyle: semibold12.copyWith(
                   fontSize: 13,
                   color: ColorApp.primary,
                 ),
-                unselectedLabelStyle: semibold12.copyWith(fontSize: 12),
-                selectedIconTheme: IconThemeData(
+                unselectedLabelStyle: semibold12.copyWith(
+                  fontSize: 12,
+                  color: theme.textTheme.bodySmall?.color,
+                ),
+
+                selectedIconTheme:  IconThemeData(
                   color: ColorApp.primary,
                   size: 26,
                 ),
                 unselectedIconTheme: const IconThemeData(size: 24),
+
                 onTap: controller.onTap,
                 items: const [
                   BottomNavigationBarItem(
@@ -79,4 +90,5 @@ class NavBarScreen extends StatelessWidget {
       },
     );
   }
+
 }

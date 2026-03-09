@@ -16,5 +16,5 @@ class MainController extends GetxController {
     update();
   }
 
-  final List<Widget> screen = [DashboardHomeScreen(), HomeScreen()];
+  final List<Widget> screen = [DashboardHomeScreen(), HomeScreen(),];
 }

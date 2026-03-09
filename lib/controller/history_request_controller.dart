@@ -10,13 +10,18 @@ class HistoryRequestController extends GetxController {
 
   var selectedStatus = 0.obs; // 👈 default = Pending
 
+  @override
+  void onInit() {
+    getHistoryRequests(selectedStatus.value);
+    super.onInit();
+  }
+
   Future<void> getHistoryRequests(int status) async {
     try {
       isLoading.value = true;
       errorMessage.value = '';
 
-      final result =
-      await HistoryRequestService.getHistoryRequests(status);
+      final result = await HistoryRequestService.getHistoryRequests(status);
 
       if (result != null) {
         requestModel.value = result;

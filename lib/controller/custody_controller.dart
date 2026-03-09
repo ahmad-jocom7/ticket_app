@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:ticket_app/model/custody/custody_model.dart';
 import 'package:ticket_app/service/custody_service.dart';
 
+import '../model/ticket/response_model.dart';
+import '../service/request_part_service.dart';
 import '../utils/snackbar.dart';
 
 class CustodyController extends GetxController {
@@ -14,11 +16,37 @@ class CustodyController extends GetxController {
   var isLoading = false.obs;
   var errorMessage = ''.obs;
   var isSendingLoading = false.obs;
+  var isLoadingEmployees = false.obs;
 
   final RxString descriptionError = ''.obs;
+  Rxn<LookupDatum> selectedEmployee = Rxn<LookupDatum>(
+    LookupDatum(intLookupId: 0, strLookupId: "0", strLookupText: "Workshop"),
+  );
 
   /// Custody Data List
   List<CustodyData> custodyList = [];
+  List<LookupDatum> employees = [];
+
+  @override
+  void onInit() {
+    fetchCustody();
+    loadEmployees();
+    super.onInit();
+  }
+
+  Future<void> loadEmployees() async {
+    isLoadingEmployees.value = true;
+
+    final result = await RequestPartService.getEmployee();
+
+    employees = result.lookupData;
+    employees.insert(
+      0,
+      LookupDatum(intLookupId: 0, strLookupId: "0", strLookupText: "Workshop"),
+    );
+
+    isLoadingEmployees.value = false;
+  }
 
   Future<void> fetchCustody() async {
     try {
@@ -59,6 +87,7 @@ class CustodyController extends GetxController {
       log('📦 Sending delivery request for custodyId: $custodyId');
 
       final success = await CustodyService.sendDeliveryRequest(
+        toEmployee: selectedEmployee.value!.intLookupId,
         custodyId: custodyId,
         description: description,
       );
@@ -86,7 +115,6 @@ class CustodyController extends GetxController {
       update();
     }
   }
-
 
   /// Refresh manually (if needed)
   Future<void> refreshCustody() async {

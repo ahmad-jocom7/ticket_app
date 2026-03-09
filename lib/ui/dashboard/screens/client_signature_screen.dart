@@ -4,10 +4,11 @@ import 'package:get/get.dart';
 import 'package:signature/signature.dart';
 import '../../../utils/color_app.dart';
 import '../../../controller/close_record_controller.dart';
-import '../../../utils/snackbar.dart';
 
 class ClientSignatureScreen extends StatefulWidget {
-  const ClientSignatureScreen({super.key});
+  final bool isReplace;
+
+  const ClientSignatureScreen({super.key, this.isReplace = false});
 
   @override
   State<ClientSignatureScreen> createState() => _ClientSignatureScreenState();
@@ -16,11 +17,21 @@ class ClientSignatureScreen extends StatefulWidget {
 class _ClientSignatureScreenState extends State<ClientSignatureScreen> {
   final TextEditingController nameController = TextEditingController();
 
-  final SignatureController _signatureController = SignatureController(
-    penStrokeWidth: 2,
-    penColor: Colors.black,
-    exportBackgroundColor: Colors.white,
-  );
+  late SignatureController _signatureController;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    _signatureController = SignatureController(
+      penStrokeWidth: 2,
+      penColor: isDark ? Colors.white : Colors.black,
+      exportBackgroundColor: isDark ? theme.colorScheme.surface : Colors.white,
+    );
+  }
 
   @override
   void dispose() {
@@ -30,129 +41,288 @@ class _ClientSignatureScreenState extends State<ClientSignatureScreen> {
 
   final controller = Get.find<ServiceRecordController>();
 
-  Future<void> showSignaturePreviewDialog({
-    required String name,
-  }) async {
+  Future<void> showSignaturePreviewDialog() async {
+    // final controller = Get.find<ServiceRecordController>();
+
     await Get.dialog(
-      Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Review Client Details",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 14),
+      Builder(
+        builder: (context) {
+          final theme = Theme.of(context);
 
-              // Name
-              Row(
+          return Dialog(
+            backgroundColor: theme.dialogTheme.backgroundColor,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.person, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                  // 🔹 Title
+                  Text(
+                    "Review Client Details",
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  if (controller.serviceRecordId != 0)
+                    _previewRow(
+                      context,
+                      icon: Icons.build_circle_outlined,
+                      label: "Service Record ID",
+                      value: controller.serviceRecordId.toString(),
+                    ),
+
+                  if (controller.ticketId != 0)
+                    _previewRow(
+                      context,
+                      icon: Icons.confirmation_number_outlined,
+                      label: "Ticket ID",
+                      value: controller.ticketId.toString(),
+                    ),
+
+                  if (controller.serviceResult != 0)
+                    _previewRow(
+                      context,
+                      icon: Icons.build,
+                      label: "Service Result",
+                      value: controller.serviceResult == 1
+                          ? "Solved"
+                          : "Not Solved",
+                    ),
+                  if (controller.repairNote.isNotEmpty ||
+                      controller.repairNote != null)
+                    _previewRow(
+                      context,
+                      icon: Icons.report_gmailerrorred_rounded,
+                      label: "Repair Note",
+                      value: controller.repairNote,
+                    ),
+
+                  if (controller.unsolvedReasonId != 0 &&
+                      controller.unsolvedReason.value != null)
+                    _previewRow(
+                      context,
+                      icon: Icons.report_problem_outlined,
+                      label: "Unsolved Reason",
+                      value:
+                          controller.unsolvedReason.value!.lookupData
+                              .firstWhereOrNull(
+                                (e) =>
+                                    e.intLookupId ==
+                                    controller.unsolvedReasonId,
+                              )
+                              ?.strLookupText ??
+                          "—",
+                    ),
+
+                  if (controller.unsolvedNote != null &&
+                      controller.unsolvedNote!.trim().isNotEmpty)
+                    _previewRow(
+                      context,
+                      icon: Icons.note_alt_outlined,
+                      label: "Unsolved Note",
+                      value: controller.unsolvedNote!,
+                    ),
+
+                  if (widget.isReplace) ...[
+                    if (controller.oldSerialNumber.text.trim().isNotEmpty)
+                      _previewRow(
+                        context,
+                        icon: Icons.qr_code_2_outlined,
+                        label: "Old Serial Number",
+                        value: controller.oldSerialNumber.text.trim(),
                       ),
-                    ),
-                  ),
-                ],
-              ),
 
-              const SizedBox(height: 14),
+                    if (widget.isReplace &&
+                        controller.selectedNewCustody != null) ...[
+                      // const SizedBox(height: 8),
+                      _previewRow(
+                        context,
+                        icon: Icons.qr_code_2_outlined,
+                        label: "New Serial Number",
+                        value: controller.selectedNewCustody!.serialNumber,
+                      ),
 
-              // Actions
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Get.back(),
-                      child: const Text("Edit"),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
+                      _previewRow(
+                        context,
+                        icon: Icons.confirmation_number_outlined,
+                        label: "New Part Number",
+                        value: controller.selectedNewCustody!.partNumber,
+                      ),
+
+                      _previewRow(
+                        context,
+                        icon: Icons.memory_outlined,
+                        label: "New Content Name",
+                        value: controller.selectedNewCustody!.contentName,
+                      ),
+
+                      _previewRow(
+                        context,
+                        icon: Icons.devices_other_outlined,
+                        label: "New Product Name",
+                        value: controller.selectedNewCustody!.poductName,
+                      ),
+                    ],
+                    if (controller.repairNoteController.text.trim().isNotEmpty)
+                      _previewRow(
+                        context,
+                        icon: Icons.description_outlined,
+                        label: "Note",
+                        value: controller.repairNoteController.text.trim(),
+                      ),
+
+                    if (controller.tripTime.isNotEmpty)
+                      _previewRow(
+                        context,
+                        icon: Icons.timer_outlined,
+                        label: "Trip Time",
+                        value: controller.tripTime,
+                      ),
+                  ],
+                  const SizedBox(height: 20),
+
+                  // 🔹 Actions
+                  SizedBox(
+                    width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () => Get.back(),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: ColorApp.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                       child: const Text(
-                        "Looks Good",
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        "OK",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
-            ],
+            ),
+          );
+        },
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  Widget _previewRow(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: theme.iconTheme.color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(value, style: theme.textTheme.bodyMedium),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Client Signature"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.visibility),
-            tooltip: 'Review Details',
-            onPressed: () async {
-              if (_signatureController.isEmpty ||
-                  nameController.text.trim().isEmpty) {
-                showError("Please enter name and signature first");
-                return;
-              }
-
-              final sigBytes = await _signatureController.toPngBytes();
-              if (sigBytes == null) return;
-
-              showSignaturePreviewDialog(
-                name: nameController.text.trim(),
-              );
-            },
-          ),
-        ],
-      ),
-
+      appBar: AppBar(title: const Text("Client Signature")),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Client Name",
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
+              Row(
+                children: [
+                  Text(
+                    "Client Name",
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    icon: Icon(
+                      Icons.fact_check_outlined,
+                      color: ColorApp.primary,
+                      size: 20,
+                    ),
+                    label: Text(
+                      "Service Summary",
+                      style: TextStyle(
+                        color: ColorApp.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    onPressed: () {
+                      showSignaturePreviewDialog();
+                    },
+                  ),
+                ],
               ),
-              const SizedBox(height: 6),
+
+              const SizedBox(height: 4),
               TextFormField(
                 controller: nameController,
                 decoration: InputDecoration(
+                  filled: true,
+                  fillColor: isDark
+                      ? theme.colorScheme.surface
+                      : Colors.grey.shade50,
+
                   hintText: "Enter client full name",
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 10,
                   ),
+
                   hintStyle: const TextStyle(
-                    color: Colors.black45,
+                    // color: Colors.black45,
                     fontSize: 13,
                   ),
                   border: OutlineInputBorder(
@@ -165,22 +335,20 @@ class _ClientSignatureScreenState extends State<ClientSignatureScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
+              const SizedBox(height: 8),
+              Text(
                 "Client Signature",
-                style: TextStyle(
-                  fontSize: 15,
+                style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Expanded(
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: ColorApp.primary.withValues(alpha: 0.5),
+                      color: isDark ? Colors.white : Colors.black38,
                       width: 0.4,
                     ),
                     borderRadius: BorderRadius.circular(12),
@@ -190,7 +358,9 @@ class _ClientSignatureScreenState extends State<ClientSignatureScreen> {
                     borderRadius: BorderRadius.circular(12),
                     child: Signature(
                       controller: _signatureController,
-                      backgroundColor: Colors.white,
+                      backgroundColor: isDark
+                          ? theme.colorScheme.surface
+                          : Colors.white,
                     ),
                   ),
                 ),
@@ -204,7 +374,6 @@ class _ClientSignatureScreenState extends State<ClientSignatureScreen> {
                     child: ElevatedButton.icon(
                       onPressed: () {
                         _signatureController.clear();
-                        nameController.clear();
                       },
                       icon: const Icon(Icons.clear, color: Colors.black87),
                       label: const Text(
@@ -246,10 +415,17 @@ class _ClientSignatureScreenState extends State<ClientSignatureScreen> {
 
                                 final base64Signature = base64Encode(sigBytes);
 
-                                await controller.closeServiceRecord(
-                                  clientSignature: base64Signature,
-                                  signatureName: nameController.text.trim(),
-                                );
+                                if (widget.isReplace) {
+                                  await controller.replaceServiceRecord(
+                                    clientSignature: base64Signature,
+                                    signatureName: nameController.text.trim(),
+                                  );
+                                } else {
+                                  await controller.repairServiceRecord(
+                                    clientSignature: base64Signature,
+                                    signatureName: nameController.text.trim(),
+                                  );
+                                }
                               },
                         icon: controller.isClosing.value
                             ? const SizedBox(

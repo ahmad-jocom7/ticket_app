@@ -510,4 +510,118 @@ class TicketService {
       return AddAssignTicketModel.fromJson({});
     }
   }
+
+  static Future<bool> addSerialFromTicket({
+    required int subProductId,
+    required String customerId,
+    required String serialNumber,
+    String note = "",
+  }) async {
+    final uri = Uri.parse(
+      '${ApiUrl.baseUrl}SubProductFile/AddSerialFromTicket',
+    );
+
+    final body = jsonEncode({
+      "subProductId": subProductId,
+      "customerId": customerId,
+      "serial_number": serialNumber,
+      "note": note,
+    });
+
+    try {
+      log('➡️ [POST] $uri');
+      log('📦 Body: $body');
+
+      final response = await http.post(
+        uri,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: body,
+      );
+
+      log('✅ [Response ${response.statusCode}] => ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data["status"] == 200;
+      }
+
+      return false;
+    } catch (e, stack) {
+      log('❌ [AddSerial Exception] $e');
+      log("$stack");
+      return false;
+    }
+  }
+
+  static Future<ResponseModel> getProductCategory() async {
+    final uri = Uri.parse(
+      '${ApiUrl.baseUrl}ddl/FillDDL?StoredProcedure=ddl_ProductCategory',
+    );
+
+
+    try {
+      log('➡️ [GET] $uri');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      log('✅ [Response ${response.statusCode}] => ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return ResponseModel.fromJson(data);
+      } else {
+        log(
+          '⚠️ [ProductCategory Error] Invalid status: ${response.statusCode}',
+        );
+        return ResponseModel.fromJson({});
+      }
+    } catch (e, stack) {
+      log('❌ [ProductCategory Exception] $e');
+      log("$stack");
+      return ResponseModel.fromJson({});
+    }
+  }
+
+  static Future<ResponseModel> getSubProductByCategory(int categoryId) async {
+    final uri = Uri.parse(
+      '${ApiUrl.baseUrl}ddl/FillDDLParam?ParamName=in_product_category_id&ParamValue=$categoryId&StoredProcedure=ddl_subProduct',
+    );
+
+    try {
+      log('➡️ [GET] $uri');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      log('✅ [Response ${response.statusCode}] => ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return ResponseModel.fromJson(data);
+      } else {
+        log(
+          '⚠️ [SubProductByCategory Error] Invalid status: ${response.statusCode}',
+        );
+        return ResponseModel.fromJson({});
+      }
+    } catch (e, stack) {
+      log('❌ [SubProductByCategory Exception] $e');
+      log("$stack");
+      return ResponseModel.fromJson({});
+    }
+  }
 }

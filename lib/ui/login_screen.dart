@@ -21,10 +21,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const bgColor = Color(0xFFF5F6FA);
+    final theme = Theme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+
+
+
+    final textTheme = theme.textTheme;
+    final cardColor = theme.cardColor;
+    final surfaceColor = isDark ? Colors.grey.shade800 : Colors.white;
 
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -55,28 +63,28 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                     Text(
+                    Text(
                       "Service Ticket System",
-                      style: TextStyle(
-                        fontSize: 22,
+                      style: textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: ColorApp.primary,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       "Please sign in to continue",
-                      style: TextStyle(fontSize: 15, color: Colors.black54),
+                      style: textTheme.bodyMedium,
                     ),
                   ],
                 ),
+
                 const SizedBox(height: 40),
 
                 // 🔹 Login Card
                 Container(
                   padding: const EdgeInsets.all(28),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: cardColor,
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: [
                       BoxShadow(
@@ -88,71 +96,71 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: Column(
                     children: [
-                      // Username Field
+                      // Username
                       TextFormField(
                         controller: usernameController,
                         decoration: InputDecoration(
                           labelText: 'Username',
-                          prefixIcon:  Icon(
+                          prefixIcon: Icon(
                             Icons.person_outline,
                             color: ColorApp.primary,
                           ),
                           filled: true,
-                          fillColor: const Color(0xFFF7F9FC),
+                          fillColor: surfaceColor,
                           border: OutlineInputBorder(
+                            borderSide: BorderSide(width: 0.05),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(width: 0.05),
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: ColorApp.primary.withValues(alpha: 0.2),
-                            ),
                           ),
-                          focusedBorder:  OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(12)),
-                            borderSide: BorderSide(color: ColorApp.primary, width: 1.5),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(width: 0.15),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Username is required';
-                          }
-                          return null;
-                        },
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty
+                            ? 'Username is required'
+                            : null,
                       ),
+
                       const SizedBox(height: 20),
 
-                      // Password Field
+                      // Password
                       TextFormField(
                         controller: passwordController,
                         obscureText: !isPasswordVisible,
                         decoration: InputDecoration(
                           labelText: 'Password',
-                          prefixIcon:  Icon(
+                          prefixIcon: Icon(
                             Icons.lock_outline,
                             color: ColorApp.primary,
                           ),
                           filled: true,
-                          fillColor: const Color(0xFFF7F9FC),
+                          fillColor: surfaceColor,
                           border: OutlineInputBorder(
+                            borderSide: BorderSide(width: 0.05),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(width: 0.05),
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: ColorApp.primary.withValues(alpha: 0.2),
-                            ),
                           ),
-                          focusedBorder:  OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(12)),
-                            borderSide: BorderSide(color: ColorApp.primary, width: 1.5),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(width: 0.14),
+                            borderRadius: BorderRadius.circular(12),
                           ),
+
+
+
                           suffixIcon: IconButton(
                             icon: Icon(
                               isPasswordVisible
                                   ? Icons.visibility_off_outlined
                                   : Icons.visibility_outlined,
-                              color: Colors.grey,
+                              color: theme.iconTheme.color,
                             ),
                             onPressed: () {
                               setState(() {
@@ -161,58 +169,52 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                           ),
                         ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Password is required';
-                          }
-                          return null;
-                        },
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty
+                            ? 'Password is required'
+                            : null,
                       ),
 
                       const SizedBox(height: 25),
 
                       // 🔹 Login Button
-                      Obx(() => SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: controller.isLoading.value
-                              ? null
-                              : () async {
-                            if (_formKey.currentState!.validate()) {
-                              await controller.login(
-                                username:
-                                usernameController.text.trim(),
-                                password:
-                                passwordController.text.trim(),
-                              );
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ColorApp.primary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: controller.isLoading.value
-                              ? const SizedBox(
-                            width: 26,
-                            height: 26,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: Colors.white,
-                            ),
-                          )
-                              : const Text(
-                            'LOGIN',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
+                      Obx(
+                        () => SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed: controller.isLoading.value
+                                ? null
+                                : () async {
+                                    if (_formKey.currentState!.validate()) {
+                                      await controller.login(
+                                        username: usernameController.text
+                                            .trim(),
+                                        password: passwordController.text
+                                            .trim(),
+                                      );
+                                    }
+                                  },
+                            child: controller.isLoading.value
+                                ? const SizedBox(
+                                    width: 26,
+                                    height: 26,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'LOGIN',
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                           ),
                         ),
-                      )),
+                      ),
                     ],
                   ),
                 ),
@@ -223,25 +225,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.copyright_rounded,
                       size: 14,
-                      color: Colors.black45,
+                      color: textTheme.bodySmall?.color,
                     ),
                     const SizedBox(width: 4),
-                    const Text(
-                      "2025",
-                      style: TextStyle(
-                        color: Colors.black54,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    Text("2025", style: textTheme.bodySmall),
                     const SizedBox(width: 6),
                     Container(
                       height: 16,
                       width: 1.2,
-                      color: Colors.black26,
+                      color: theme.dividerColor,
                     ),
                     const SizedBox(width: 6),
                     Image.asset(

@@ -7,7 +7,7 @@ import '../../model/delivery_request/request_model.dart';
 import 'edit_request_screen.dart';
 
 class RequestHistoryScreen extends StatefulWidget {
-  const RequestHistoryScreen({super.key});
+   const RequestHistoryScreen({super.key});
 
   @override
   State<RequestHistoryScreen> createState() => _RequestHistoryScreenState();
@@ -19,17 +19,9 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
   );
 
   @override
-  void initState() {
-    controller.getHistoryRequests(controller.selectedStatus.value);
-    super.initState();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // first load (default = pending)
-
     return Scaffold(
-       appBar: AppBar(title: const Text("Request History")),
+      appBar: AppBar(title: const Text("Request History")),
       body: Column(
         children: [
           _statusFilter(),
@@ -58,6 +50,7 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
   }
 
   Widget _filterChip(String title, int value) {
+    final theme = Theme.of(context); // ✅ changed
     final isSelected = controller.selectedStatus.value == value;
 
     return Expanded(
@@ -66,16 +59,20 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? ColorApp.primary : Colors.white,
+            // ✅ changed: theme-aware background
+            color: isSelected ? ColorApp.primary : theme.cardColor,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: ColorApp.primary),
+            border: Border.all(color: ColorApp.primary, width: 0.5),
           ),
           child: Center(
             child: Text(
               title,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: isSelected ? Colors.white : ColorApp.primary,
+                // ✅ changed: adaptive text color
+                color: isSelected
+                    ? Colors.white
+                    : theme.textTheme.bodyMedium?.color,
               ),
             ),
           ),
@@ -95,7 +92,7 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
         return Center(child: Text(controller.errorMessage.value));
       }
 
-      final List<LstRequest> data = controller.requestModel.value!.lstRequests;
+      final data = controller.requestModel.value!.lstRequests;
 
       if (data.isEmpty) {
         return const Center(child: Text("No requests found"));
@@ -113,16 +110,25 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
 
   // ---------------------------------------------------------
   Widget _professionalCard(LstRequest item) {
+    final theme = Theme.of(context); // ✅ changed
+
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        // ✅ changed: theme card color
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black12, width: 0.7),
+        border: Border.all(
+          color: theme.dividerColor.withValues(alpha: 0.4),
+          width: 0.25,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            // ✅ changed: softer shadow for dark/light
+            color: Colors.black.withValues(
+              alpha: theme.brightness == Brightness.dark ? 0.25 : 0.05,
+            ),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -145,9 +151,11 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
               Expanded(
                 child: Text(
                   item.partNumber,
-                  style: const TextStyle(
+                  // ✅ changed: theme text color
+                  style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 17,
+                    color: theme.textTheme.bodyLarge?.color,
                   ),
                 ),
               ),
@@ -156,7 +164,7 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
           ),
 
           const SizedBox(height: 14),
-          const Divider(),
+          Divider(color: theme.dividerColor.withValues(alpha: 0.4)),
           const SizedBox(height: 14),
 
           _infoTile("Description", item.description),
@@ -213,25 +221,10 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
     );
   }
 
-  String _statusText(int status) {
-    switch (status) {
-      case 0:
-        return "Pending";
-      case 1:
-        return "Accepted";
-      case 2:
-        return "Rejected";
-      default:
-        return "Unknown";
-    }
-  }
-
-  String _formatDate(DateTime date) {
-    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-  }
-
   // ---------------------------------------------------------
   Widget _infoTile(String title, String value) {
+    final theme = Theme.of(context); // ✅ changed
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -240,16 +233,22 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
             width: 95,
             child: Text(
               "$title:",
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 14.5,
+                // ✅ changed
+                color: theme.textTheme.bodyLarge?.color,
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: 14.5, color: Colors.black54),
+              style: TextStyle(
+                fontSize: 14.5,
+                // ✅ changed
+                color: theme.textTheme.bodyMedium?.color,
+              ),
             ),
           ),
         ],
@@ -291,5 +290,22 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
         ),
       ),
     );
+  }
+
+  String _statusText(int status) {
+    switch (status) {
+      case 0:
+        return "Pending";
+      case 1:
+        return "Accepted";
+      case 2:
+        return "Rejected";
+      default:
+        return "Unknown";
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
   }
 }

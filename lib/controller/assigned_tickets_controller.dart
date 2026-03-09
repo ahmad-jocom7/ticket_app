@@ -5,12 +5,14 @@ import 'package:ticket_app/controller/accepted_tickets_controller.dart';
 
 import '../model/service_record/assign_ticket_model.dart';
 import '../service/service_record_service.dart';
+import 'accepted_tickets_home_controller.dart';
 
 class AssignedTicketController extends GetxController {
   static AssignedTicketController get to =>
       Get.isRegistered<AssignedTicketController>()
       ? Get.find<AssignedTicketController>()
       : Get.put(AssignedTicketController());
+
   var isLoading = false.obs;
   var errorMessage = ''.obs;
   var isUpdating = false.obs; // Track update state during Accept or Reject
@@ -20,7 +22,12 @@ class AssignedTicketController extends GetxController {
 
   List<LstTicket> data = [];
 
-  /// 🔹 Fetch assigned tickets
+  @override
+  void onInit() {
+    fetchAssignedTickets();
+    super.onInit();
+  }
+
   Future<void> fetchAssignedTickets() async {
     try {
       isLoading(true);
@@ -28,7 +35,7 @@ class AssignedTicketController extends GetxController {
 
       log('🎬 Fetching assigned tickets from server...');
 
-      final result = await TicketService.getAssignedTicketsByEmployee();
+      final result = await ServiceRecordService.getAssignedTicketsByEmployee();
 
       if (result != null) {
         data = result.lstTicket;
@@ -52,7 +59,7 @@ class AssignedTicketController extends GetxController {
       acceptAssignId.value = intId;
       log('🚀 Sending request to accept ticket intId=$intId');
 
-      final success = await TicketService.updateAssignTicket(
+      final success = await ServiceRecordService.updateAssignTicket(
         intId: intId,
         status: 3,
         intAccept: 1,
@@ -68,6 +75,7 @@ class AssignedTicketController extends GetxController {
         );
         await fetchAssignedTickets();
         await AcceptedTicketController.to.fetchAcceptedTickets();
+        await AcceptedTicketHomeController.to.fetchAcceptedTickets();
       } else {
         Get.snackbar(
           "Operation Failed ❌",
@@ -89,7 +97,7 @@ class AssignedTicketController extends GetxController {
       );
     } finally {
       update();
-      acceptAssignId.value = 0; // ترجع الحالة العادية بعد الانتهاء
+      acceptAssignId.value = 0;
     }
   }
 
@@ -98,7 +106,7 @@ class AssignedTicketController extends GetxController {
       rejectAssignId.value = intId;
       log('🚀 Sending request to reject ticket intId=$intId, note=$rejectNote');
 
-      final success = await TicketService.updateAssignTicket(
+      final success = await ServiceRecordService.updateAssignTicket(
         intId: intId,
         status: 2,
         intAccept: 0,

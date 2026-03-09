@@ -5,28 +5,15 @@ import 'package:ticket_app/model/delivery_request/request_model.dart';
 import 'package:ticket_app/utils/color_app.dart';
 
 import '../../utils/snackbar.dart';
+import '../../utils/text_style.dart';
 
-class DeliveryRequestScreen extends StatefulWidget {
-  const DeliveryRequestScreen({super.key});
+class DeliveryRequestScreen extends StatelessWidget {
+   DeliveryRequestScreen({super.key});
 
-  @override
-  State<DeliveryRequestScreen> createState() => _DeliveryRequestScreenState();
-}
-
-class _DeliveryRequestScreenState extends State<DeliveryRequestScreen> {
   final controller = DeliveryRequestController.to;
-
-
-  @override
-  void initState() {
-    controller.fetchDeliveryRequests();
-    super.initState();
-  }
 
   @override
   Widget build(BuildContext context) {
-
-
     return Scaffold(
       appBar: AppBar(title: const Text("Delivery Requests")),
       body: GetBuilder<DeliveryRequestController>(
@@ -38,7 +25,7 @@ class _DeliveryRequestScreenState extends State<DeliveryRequestScreen> {
             return Center(
               child: Text(
                 controller.errorMessage.value,
-                style: const TextStyle(fontSize: 16, color: Colors.red),
+                // style: const TextStyle(fontSize: 16, color: Colors.red),
               ),
             );
           }
@@ -46,7 +33,7 @@ class _DeliveryRequestScreenState extends State<DeliveryRequestScreen> {
             return const Center(
               child: Text(
                 "No delivery requests available",
-                style: TextStyle(fontSize: 16, color: Colors.black54),
+                // style: TextStyle(fontSize: 16, color: Colors.black54),
               ),
             );
           }
@@ -66,49 +53,70 @@ class _DeliveryRequestScreenState extends State<DeliveryRequestScreen> {
   }
 
   Widget _requestCard(LstRequest item, DeliveryRequestController controller) {
+    final theme = Get.theme;
+
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = theme.cardColor;
+    final dividerColor = theme.dividerColor;
+    final primaryTextColor = theme.textTheme.bodyMedium?.color;
+
     return Container(
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        // ✅ changed: card background from theme
+        color: cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black12),
+        border: Border.all(
+          width: 0.2,
+          // ✅ changed
+          color: dividerColor,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            // ✅ changed: softer shadow in dark mode
+            color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // HEADER
+          // 🔹 HEADER
           Row(
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: ColorApp.primary.withValues(alpha: 0.1),
-                child: Icon(Icons.inventory_2_outlined,
-                    color: ColorApp.primary, size: 26),
+                // ✅ changed: adaptive background
+                backgroundColor: ColorApp.primary.withValues(
+                  alpha: isDark ? 0.18 : 0.1,
+                ),
+                child: Icon(
+                  Icons.inventory_2_outlined,
+                  color: ColorApp.primary,
+                  size: 26,
+                ),
               ),
+
               const SizedBox(width: 12),
+
               Expanded(
                 child: Text(
                   item.partNumber,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
+                  // ✅ changed: shared text style
+                  style: bold18.copyWith(color: primaryTextColor),
                 ),
               ),
             ],
           ),
 
           const SizedBox(height: 12),
-          const Divider(height: 1),
+
+          // ✅ changed: divider color from theme
+          Divider(height: 1, color: dividerColor.withValues(alpha: 0.2)),
+
           const SizedBox(height: 12),
 
           _row("Content", item.contentName),
@@ -123,26 +131,31 @@ class _DeliveryRequestScreenState extends State<DeliveryRequestScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              // REJECT BUTTON
+              // 🔴 REJECT BUTTON
               TextButton.icon(
                 onPressed: () => showDeliveryRejectDialog(item.id),
                 icon: const Icon(Icons.close, color: Colors.red),
-                label: const Text(
+                label: Text(
                   "Reject",
-                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+                  // ✅ changed
+                  style: semibold14.copyWith(color: Colors.red),
                 ),
               ),
 
               const SizedBox(width: 10),
 
-              // ACCEPT BUTTON
+              // 🟢 ACCEPT BUTTON
               ElevatedButton.icon(
                 onPressed: () => controller.acceptRequest(item.id),
                 icon: const Icon(Icons.check_circle_outline),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ColorApp.primary,
                 ),
-                label: const Text("Accept"),
+                label: Text(
+                  "Accept",
+                  // ✅ changed
+                  style: semibold14.copyWith(color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -152,24 +165,30 @@ class _DeliveryRequestScreenState extends State<DeliveryRequestScreen> {
   }
 
   Widget _row(String title, String value) {
+    // ✅ changed: get theme-based colors once
+    final theme = Get.theme;
+
+    final primaryTextColor = theme.textTheme.bodyMedium?.color;
+    final secondaryTextColor = theme.textTheme.bodySmall?.color;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
             width: 120,
             child: Text(
               "$title:",
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                color: Colors.black87,
-              ),
+              // ✅ changed: use shared text style + theme color
+              style: semibold14.copyWith(color: primaryTextColor),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(color: Colors.black54, fontSize: 14.5),
+              // ✅ changed: use shared text style + secondary theme color
+              style: regular14.copyWith(color: secondaryTextColor),
             ),
           ),
         ],
@@ -184,26 +203,29 @@ class _DeliveryRequestScreenState extends State<DeliveryRequestScreen> {
     Get.dialog(
       Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        backgroundColor: Colors.white,
+        // ✅ changed: dialog background from theme
+        backgroundColor: Get.theme.cardColor,
         insetPadding: const EdgeInsets.symmetric(horizontal: 25),
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // 🔹 Title Row
                 Row(
-                  children: const [
-                    Icon(Icons.cancel_outlined, color: Colors.red, size: 28),
-                    SizedBox(width: 8),
+                  children: [
+                    const Icon(
+                      Icons.cancel_outlined,
+                      color: Colors.red,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 8),
                     Text(
                       "Reject Request",
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
+                      // ✅ changed: shared text style
+                      style: bold18.copyWith(color: Colors.red),
                     ),
                   ],
                 ),
@@ -211,12 +233,12 @@ class _DeliveryRequestScreenState extends State<DeliveryRequestScreen> {
                 const SizedBox(height: 14),
 
                 // 🔹 Description
-                const Text(
+                Text(
                   "Please provide a reason for rejecting this delivery request. "
-                      "The reason will be stored on the server.",
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontSize: 14.2,
+                  "The reason will be stored on the server.",
+                  // ✅ changed: theme-based text color
+                  style: regular14.copyWith(
+                    color: Get.theme.textTheme.bodyMedium?.color,
                     height: 1.4,
                   ),
                 ),
@@ -229,28 +251,44 @@ class _DeliveryRequestScreenState extends State<DeliveryRequestScreen> {
                   maxLines: 3,
                   decoration: InputDecoration(
                     hintText: "Enter rejection reason...",
-                    hintStyle: const TextStyle(color: Colors.black45),
+                    // ✅ changed: hint color from theme
+                    hintStyle: TextStyle(color: Get.theme.hintColor),
                     filled: true,
-                    fillColor: const Color(0xFFF9FAFB),
+                    // ✅ changed: adaptive fill color
+                    fillColor: Get.isDarkMode
+                        ? Colors.grey.shade800
+                        : const Color(0xFFF9FAFB),
                     contentPadding: const EdgeInsets.symmetric(
                       vertical: 12,
                       horizontal: 12,
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                      borderSide: BorderSide(
+                        // ✅ changed
+                        width: 0.2,
+                        color: Get.theme.dividerColor,
+                      ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                      borderSide: BorderSide(
+                        width: 0.2,
+                        // ✅ changed
+                        color: Get.theme.dividerColor,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(
                         color: Colors.red,
-                        width: 1.3,
+
+                        width: 0.5,
                       ),
                     ),
+                  ),
+                  style: regular14.copyWith(
+                    color: Get.theme.textTheme.bodyMedium?.color,
                   ),
                 ),
 
@@ -264,17 +302,21 @@ class _DeliveryRequestScreenState extends State<DeliveryRequestScreen> {
                       child: OutlinedButton(
                         onPressed: () => Get.back(),
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.grey, width: 1),
+                          side: BorderSide(
+                            // ✅ changed
+                            color: Get.theme.dividerColor,
+                            width: 1,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
-                        child: const Text(
+                        child: Text(
                           "Cancel",
-                          style: TextStyle(
-                            color: Colors.black87,
-                            fontWeight: FontWeight.w600,
+                          // ✅ changed
+                          style: semibold14.copyWith(
+                            color: Get.theme.textTheme.bodyMedium?.color,
                           ),
                         ),
                       ),
@@ -296,19 +338,19 @@ class _DeliveryRequestScreenState extends State<DeliveryRequestScreen> {
                           final reason = reasonCtrl.text.trim();
 
                           if (reason.isEmpty) {
-                            showError("Please enter a reason before rejecting.");
+                            showError(
+                              "Please enter a reason before rejecting.",
+                            );
                             return;
                           }
 
                           Get.back(); // Close dialog first
                           await controller.rejectRequest(requestId, reason);
                         },
-                        child: const Text(
+                        child: Text(
                           "Confirm",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          // ✅ changed
+                          style: semibold14.copyWith(color: Colors.white),
                         ),
                       ),
                     ),
@@ -322,5 +364,4 @@ class _DeliveryRequestScreenState extends State<DeliveryRequestScreen> {
       barrierDismissible: false,
     );
   }
-
 }

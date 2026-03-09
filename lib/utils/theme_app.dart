@@ -5,6 +5,7 @@ ThemeData themeApp = ThemeData(
   scaffoldBackgroundColor: Color(0xFFF5F6FA),
   primaryColor: ColorApp.primary,
   fontFamily: "cairo",
+
   elevatedButtonTheme: ElevatedButtonThemeData(
     style: ButtonStyle(
       shape: WidgetStatePropertyAll(
@@ -14,7 +15,11 @@ ThemeData themeApp = ThemeData(
       backgroundColor: WidgetStatePropertyAll(ColorApp.primary),
     ),
   ),
+  outlinedButtonTheme: OutlinedButtonThemeData(
+    style: ButtonStyle(foregroundColor: WidgetStatePropertyAll(Colors.black54)),
+  ),
   cardColor: Colors.white,
+  dialogTheme: DialogThemeData(backgroundColor: Colors.white),
   textSelectionTheme: TextSelectionThemeData(
     cursorColor: ColorApp.primary,
     selectionColor: ColorApp.primary.withValues(alpha: 0.3),
@@ -23,7 +28,6 @@ ThemeData themeApp = ThemeData(
 
   inputDecorationTheme: InputDecorationTheme(
     floatingLabelStyle: TextStyle(color: ColorApp.primary),
-
   ),
   progressIndicatorTheme: ProgressIndicatorThemeData(color: ColorApp.primary),
 
@@ -47,6 +51,9 @@ ThemeData darkThemeApp = ThemeData(
   brightness: Brightness.dark,
 
   cardColor: const Color(0xFF1E1E1E),
+  outlinedButtonTheme: OutlinedButtonThemeData(
+    style: ButtonStyle(foregroundColor: WidgetStatePropertyAll(Colors.white70)),
+  ),
 
   elevatedButtonTheme: ElevatedButtonThemeData(
     style: ButtonStyle(
@@ -68,8 +75,7 @@ ThemeData darkThemeApp = ThemeData(
     floatingLabelStyle: TextStyle(color: Colors.white),
   ),
 
-  progressIndicatorTheme:
-  ProgressIndicatorThemeData(color: ColorApp.primary),
+  progressIndicatorTheme: ProgressIndicatorThemeData(color: ColorApp.primary),
 
   appBarTheme: AppBarTheme(
     elevation: 0,

@@ -40,6 +40,11 @@ class MySharedPreferences {
   set isLogin(bool value) {
     _sharedPreferences.setBool(keyIsLogin, value);
   }
+  bool get isDark => _sharedPreferences.getBool(keyIsDark) ?? false;
+
+  set isDark(bool value) {
+    _sharedPreferences.setBool(keyIsDark, value);
+  }
 
   String get username => _sharedPreferences.getString(keyUserName) ?? "";
 
@@ -70,13 +75,28 @@ class MySharedPreferences {
   set bookId(int value) {
     _sharedPreferences.setInt(keyBookId, value);
   }
+
+  String get deviceToken => _sharedPreferences.getString(keyDeviceToken) ?? "";
+
+  set deviceToken(String value) {
+    _sharedPreferences.setString(keyDeviceToken, value);
+  }
+
+  bool get isGMS => _sharedPreferences.getBool(keyIsGMS) ?? true;
+
+  set isGMS(bool value) {
+    _sharedPreferences.setBool(keyIsGMS, value);
+  }
 }
 
 final mySharedPreferences = MySharedPreferences();
 
 const String keyUserData = "key_user_data";
 const String keyIsLogin = "key_is_login";
+const String keyIsGMS = "key_is_gms";
+const String keyIsDark = "key_is_dark";
 const String keyUserName = "key_username";
+const String keyDeviceToken = "key_device_token";
 const String keyBookId = "key_book_id";
 const String keyDeviceId = "key_device_id";
 const String keyDeviceModel = "key_device_model";

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../utils/color_app.dart';
+import 'ticket_history_screen.dart';
 import '../widgets/dashboard_card.dart';
 import '../widgets/dashboard_header_section.dart';
 import 'accepted_ticket_screen.dart';
 import 'new_ticket_screen.dart';
-import '../../ticket_history/ticket_history_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -48,5 +48,3 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 }
-
-

@@ -4,6 +4,7 @@ import '../../controller/theme_controller.dart';
 import '../../model/auth/login_model.dart';
 import '../../utils/color_app.dart';
 import '../../utils/my_shared_preferences.dart';
+import '../login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -185,7 +186,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 🔹 Info Tile
   Widget _infoTile(
       BuildContext context,
       IconData icon,
@@ -254,8 +254,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              // mySharedPreferences.clear();
-              // Get.offAll(() => LoginScreen());
+
+              mySharedPreferences.clearProfile();
+              Get.offAll(() => LoginScreen());
+
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Logout'),
