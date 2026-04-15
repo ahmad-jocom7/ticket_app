@@ -1,6 +1,7 @@
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:ticket_app/utils/validation.dart';
 
 import '../../utils/color_app.dart';
 import '../../controller/add_ticket_controller.dart';
@@ -36,6 +37,7 @@ class AddTicketScreen extends StatelessWidget {
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Form(
+            key: controller.formKey,
             child: Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -58,7 +60,6 @@ class AddTicketScreen extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 25,
-                        // ✅ changed: adaptive background
                         backgroundColor: ColorApp.primary.withValues(
                           alpha: Theme.of(context).brightness == Brightness.dark
                               ? 0.18
@@ -93,6 +94,7 @@ class AddTicketScreen extends StatelessWidget {
                           : controller.selectedTicketType?.value,
                       items: controller.ticketTypes,
                       onChanged: controller.onTicketTypeSelected,
+                      required: true,
                     ),
                   ),
 
@@ -114,6 +116,7 @@ class AddTicketScreen extends StatelessWidget {
 
                   // Caller Name
                   InputFieldWidget(
+                    required: true,
                     label: 'Caller Name',
                     icon: Icons.phone_outlined,
                     controller: controller.callerName,
@@ -145,6 +148,7 @@ class AddTicketScreen extends StatelessWidget {
                       children: [
                         Expanded(
                           child: DropdownFieldWidget(
+                            required: true,
                             readOnly: controller.lockFieldSerialNo.value,
                             label: 'S/N',
                             icon: Icons.numbers_outlined,
@@ -158,45 +162,46 @@ class AddTicketScreen extends StatelessWidget {
                             onChanged: controller.onSerialSelected,
                           ),
                         ),
-                        if (controller.selectedTicketType?.value
-                                .toLowerCase() ==
-                            "internal ticket") ...[
-                          SizedBox(width: 5),
-                          SizedBox(
-                            height: 42,
-                            child: FilledButton(
-                              onPressed: () {
-                                Get.dialog(
-                                  AddSerialDialog(
-                                    customerId:
-                                        controller.selectedCustomer!.value,
-                                  ),
-                                );
-                              },
-                              style: FilledButton.styleFrom(
-                                backgroundColor: ColorApp.primary,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: const Text(
-                                "Add",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        // if (controller.selectedTicketType?.value
+                        //         .toLowerCase() ==
+                        //     "internal ticket") ...[
+                        //   SizedBox(width: 5),
+                        //   SizedBox(
+                        //     height: 42,
+                        //     child: FilledButton(
+                        //       onPressed: () {
+                        //         Get.dialog(
+                        //           AddSerialDialog(
+                        //             customerId:
+                        //                 controller.selectedCustomer!.value,
+                        //           ),
+                        //         );
+                        //       },
+                        //       style: FilledButton.styleFrom(
+                        //         backgroundColor: ColorApp.primary,
+                        //         padding: const EdgeInsets.symmetric(
+                        //           horizontal: 16,
+                        //         ),
+                        //         shape: RoundedRectangleBorder(
+                        //           borderRadius: BorderRadius.circular(10),
+                        //         ),
+                        //       ),
+                        //       child: const Text(
+                        //         "Add",
+                        //         style: TextStyle(
+                        //           fontSize: 12,
+                        //           fontWeight: FontWeight.w600,
+                        //         ),
+                        //       ),
+                        //     ),
+                        //   ),
+                        // ],
                       ],
                     ),
                   ),
                   Obx(
                     () => DropdownFieldWidget(
+                      required: true,
                       label: 'Sub Product Name',
                       icon: Icons.widgets_outlined,
                       value:
@@ -236,6 +241,7 @@ class AddTicketScreen extends StatelessWidget {
                   }),
 
                   InputFieldWidget(
+                    required: true,
                     label: 'Fault Note',
                     icon: Icons.sticky_note_2_outlined,
                     controller: controller.faultNote,
@@ -283,6 +289,7 @@ class DropdownFieldCustomerWidget extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: DropdownSearch<LookupDatum>(
+        validator: (value) => Validation.isRequired(value?.strLookupText),
         key: controller.dropdownKey,
         items: (String? filter, LoadProps? loadProps) async {
           final skip = loadProps?.skip ?? 0; // how many items already loaded
@@ -442,6 +449,7 @@ class LocationSectionWidget extends StatelessWidget {
                             ? (constraints.maxWidth - 24) / 3
                             : constraints.maxWidth,
                         child: DropdownFieldWidget(
+                          required: true,
                           label: "Area",
                           icon: Icons.map_outlined,
                           value: controller.selectedArea?.value.isEmpty == true
@@ -462,6 +470,7 @@ class LocationSectionWidget extends StatelessWidget {
                             ? (constraints.maxWidth - 24) / 3
                             : constraints.maxWidth,
                         child: DropdownFieldWidget(
+                          required: true,
                           label: "Sub Area",
                           icon: Icons.location_city_outlined,
                           value:
@@ -568,6 +577,7 @@ class DropdownFieldWidget extends StatelessWidget {
   final List<String> items;
   final Function(String?) onChanged;
   final bool readOnly;
+  final bool required;
 
   const DropdownFieldWidget({
     super.key,
@@ -577,6 +587,7 @@ class DropdownFieldWidget extends StatelessWidget {
     required this.items,
     required this.onChanged,
     this.readOnly = false,
+    this.required = false,
   });
 
   @override
@@ -587,6 +598,9 @@ class DropdownFieldWidget extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: DropdownSearch<String>(
+        validator: required == false
+            ? null
+            : (value) => Validation.isRequired(value),
         items: (String? filter, _) {
           return items
               .where(
@@ -600,7 +614,6 @@ class DropdownFieldWidget extends StatelessWidget {
         selectedItem: value,
         onChanged: readOnly ? null : onChanged,
         enabled: items.isNotEmpty && !readOnly,
-
         popupProps: PopupProps.dialog(
           fit: FlexFit.loose,
           showSearchBox: true,
@@ -636,6 +649,10 @@ class DropdownFieldWidget extends StatelessWidget {
             filled: true,
             fillColor: isDark ? theme.colorScheme.surface : Colors.grey.shade50,
 
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.red.shade900),
+            ),
             disabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFBBDEFB)),
@@ -780,6 +797,7 @@ class InputFieldWidget extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool readOnly;
+  final bool required;
   final TextEditingController controller;
 
   const InputFieldWidget({
@@ -787,6 +805,7 @@ class InputFieldWidget extends StatelessWidget {
     required this.label,
     required this.icon,
     this.readOnly = false,
+    this.required = false,
     required this.controller,
   });
 
@@ -798,6 +817,10 @@ class InputFieldWidget extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
+        validator: required == false
+            ? null
+            : (value) => Validation.isRequired(value),
+
         onTapOutside: (_) {
           FocusManager.instance.primaryFocus?.unfocus();
         },

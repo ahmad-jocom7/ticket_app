@@ -37,7 +37,7 @@ class DashboardCard extends StatelessWidget {
             BoxShadow(
               color: isDark
                   ? Colors.black.withValues(alpha: 0.35)
-                  : color.withValues(alpha: 0.08),
+                  : color.withValues(alpha: 0.03),
               blurRadius: isDark ? 8 : 5,
               offset: const Offset(0, 4),
             ),

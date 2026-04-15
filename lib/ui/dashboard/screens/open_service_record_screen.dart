@@ -602,8 +602,56 @@ void _showResolutionDialog(ServiceRecordController controller) {
                         ),
 
                         const SizedBox(height: 20),
+                        GetBuilder<ServiceRecordController>(
+                          builder: (logic) {
+                            return DropdownButtonFormField<int>(
+                              value: controller.serviceLocation,
+                              dropdownColor: theme.dialogTheme.backgroundColor,
+                              decoration: InputDecoration(
+                                labelText: "Service Location",
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: ColorApp.primary.withValues(
+                                      alpha: 0.25,
+                                    ),
+                                    width: 1,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: ColorApp.primary,
+                                    width: 1.3,
+                                  ),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 0,
+                                  child: Text("On Site"),
+                                ),
+                                DropdownMenuItem(
+                                  value: 1,
+                                  child: Text("Workshop"),
+                                ),
+                              ],
+                              onChanged: (val) {
+                                controller.serviceLocation = val ?? 0;
+                                controller.update();
+                              },
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 10),
 
-                        // 🔹 Dropdown + Note Field
                         if (!isSolved)
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -740,53 +788,119 @@ void _showResolutionDialog(ServiceRecordController controller) {
                               ),
                             ),
                             const SizedBox(width: 10),
+                            // Expanded(
+                            //   child: ElevatedButton(
+                            //     onPressed: () async {
+                            //       if (!isSolved && selectedReason == null) {
+                            //         Get.snackbar(
+                            //           "Missing Reason ⚠️",
+                            //           "Please select a reason before continuing.",
+                            //           snackPosition: SnackPosition.TOP,
+                            //           backgroundColor: isDark
+                            //               ? Colors.orange.shade700
+                            //               : Colors.yellow.shade100,
+                            //           colorText: isDark
+                            //               ? Colors.white
+                            //               : Colors.black87,
+                            //         );
+                            //
+                            //         return;
+                            //       }
+                            //
+                            //       controller.serviceResult = isSolved ? 1 : 2;
+                            //       controller.unsolvedReasonId = isSolved
+                            //           ? 0
+                            //           : int.parse(selectedReason ?? '0');
+                            //       controller.unsolvedNote = isSolved
+                            //           ? ''
+                            //           : noteController.text.trim();
+                            //
+                            //       Get.back();
+                            //       if (controller.serviceLocation == 1) {
+                            //         await controller.repairServiceRecord(
+                            //           clientSignature: "",
+                            //           signatureName: "",
+                            //         );
+                            //       } else {
+                            //         Get.to(() => const ClientSignatureScreen());
+                            //       }
+                            //     },
+                            //     style: ElevatedButton.styleFrom(
+                            //       backgroundColor: ColorApp.primary,
+                            //       padding: const EdgeInsets.symmetric(
+                            //         vertical: 12,
+                            //       ),
+                            //       shape: RoundedRectangleBorder(
+                            //         borderRadius: BorderRadius.circular(12),
+                            //       ),
+                            //     ),
+                            //     child: const Text(
+                            //       "Confirm",
+                            //       style: TextStyle(
+                            //         fontWeight: FontWeight.w600,
+                            //         color: Colors.white,
+                            //       ),
+                            //     ),
+                            //   ),
+                            // ),
                             Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {
+                              child: Obx(() => ElevatedButton(
+                                onPressed: controller.isClosing.value
+                                    ? null
+                                    : () async {
                                   if (!isSolved && selectedReason == null) {
                                     Get.snackbar(
                                       "Missing Reason ⚠️",
                                       "Please select a reason before continuing.",
                                       snackPosition: SnackPosition.TOP,
-                                      backgroundColor: isDark
-                                          ? Colors.orange.shade700
-                                          : Colors.yellow.shade100,
-                                      colorText: isDark
-                                          ? Colors.white
-                                          : Colors.black87,
                                     );
-
                                     return;
                                   }
 
-                                  controller.serviceResult = isSolved ? 1 : 2;
-                                  controller.unsolvedReasonId = isSolved
-                                      ? 0
-                                      : int.parse(selectedReason ?? '0');
-                                  controller.unsolvedNote = isSolved
-                                      ? ''
-                                      : noteController.text.trim();
+                                  controller.serviceResult = isSolved ? 1 : 0;
+                                  controller.unsolvedReasonId =
+                                  isSolved ? 0 : int.parse(selectedReason ?? '0');
+                                  controller.unsolvedNote =
+                                  isSolved ? '' : noteController.text.trim();
 
-                                  Get.back();
-                                  Get.to(() => const ClientSignatureScreen());
+
+                                  if (controller.serviceLocation == 1) {
+                                    await controller.repairServiceRecord(
+                                      clientSignature: "",
+                                      signatureName: "",
+                                      back: true
+                                    );
+
+                                  } else {
+                                    Get.back();
+
+                                    Get.to(() => const ClientSignatureScreen());
+                                  }
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: ColorApp.primary,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                                child: const Text(
+                                child: controller.isClosing.value
+                                    ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                                    : const Text(
                                   "Confirm",
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
                                     color: Colors.white,
                                   ),
                                 ),
-                              ),
+                              )),
                             ),
                           ],
                         ),
@@ -858,7 +972,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                 if (code != null && code.isNotEmpty) {
                   isScanned = true;
 
-                  // ⏳ رجّع النتيجة بعد frame
                   Future.delayed(const Duration(milliseconds: 100), () {
                     Navigator.of(context).pop(code);
                   });

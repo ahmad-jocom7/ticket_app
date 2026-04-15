@@ -1,6 +1,7 @@
 class ApiUrl {
-  static const String baseUrl = "http://10.0.0.63:83/api/";
-  // static const String baseUrl = "https://ticketing_api.jocom.jo/api/";
+  // static const String baseUrl = "http://10.0.0.63:83/api/";
+  // static const String baseUrl = "http://10.0.0.63:9096/api/";
+  static const String baseUrl = "https://ticketing_api.jocom.jo/api/";
 
   static const String login = "Login/LoginApp";
 

@@ -5,6 +5,7 @@ import 'package:ticket_app/ui/dashboard/screens/open_service_record_screen.dart'
 
 import '../model/service_record/assign_ticket_model.dart';
 import '../service/service_record_service.dart';
+import 'accepted_tickets_home_controller.dart';
 
 class AcceptedTicketController extends GetxController {
   static AcceptedTicketController get to =>
@@ -22,9 +23,11 @@ class AcceptedTicketController extends GetxController {
   var hasOpenedRecord = false.obs;
 
   void checkOpenedRecord(List<LstTicket> tickets) {
-    hasOpenedRecord.value =
-        tickets.any((e) => e.ticketInfo.intServiceRecordID != 0);
+    hasOpenedRecord.value = tickets.any(
+      (e) => e.ticketInfo.intServiceRecordID != 0,
+    );
   }
+
   List<LstTicket> data = [];
   final TextEditingController ticketIdController = TextEditingController();
 
@@ -50,20 +53,19 @@ class AcceptedTicketController extends GetxController {
       final from = fromDate == null
           ? '0'
           : '${fromDate.day.toString().padLeft(2, '0')}/'
-          '${fromDate.month.toString().padLeft(2, '0')}/'
-          '${fromDate.year}';
+                '${fromDate.month.toString().padLeft(2, '0')}/'
+                '${fromDate.year}';
 
       final to = toDate == null
           ? '0'
           : '${toDate.day.toString().padLeft(2, '0')}/'
-          '${toDate.month.toString().padLeft(2, '0')}/'
-          '${toDate.year}';
+                '${toDate.month.toString().padLeft(2, '0')}/'
+                '${toDate.year}';
 
       log('🎬 Fetching accepted tickets...');
       log('➡️ Filters: ticketId=$ticketId | from=$from | to=$to');
 
-      final result =
-      await ServiceRecordService.getAcceptedTicketsByEmployee(
+      final result = await ServiceRecordService.getAcceptedTicketsByEmployee(
         ticketId: ticketId,
         fromDate: from,
         toDate: to,
@@ -243,6 +245,7 @@ class AcceptedTicketController extends GetxController {
           colorText: const Color(0xFF0D3D0D),
         );
         await fetchAcceptedTickets();
+        await  AcceptedTicketHomeController.to.fetchAcceptedTickets();
       } else {
         Get.snackbar(
           "Operation Failed ❌",
@@ -266,10 +269,10 @@ class AcceptedTicketController extends GetxController {
       isRejected.value = false;
     }
   }
+
   @override
   void onClose() {
     ticketIdController.dispose();
     super.onClose();
   }
-
 }

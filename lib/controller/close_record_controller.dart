@@ -24,7 +24,7 @@ class ServiceRecordController extends GetxController {
   int serviceRecordId = 0;
   int ticketId = 0;
   String tripTime = '';
-
+  int serviceLocation = 0;
   String repairNote = '';
   int serviceResult = 0;
   int unsolvedReasonId = 0;
@@ -166,6 +166,7 @@ class ServiceRecordController extends GetxController {
   Future<void> repairServiceRecord({
     required String clientSignature,
     required String signatureName,
+    bool back = false,
   }) async {
     try {
       isClosing(true);
@@ -183,9 +184,12 @@ class ServiceRecordController extends GetxController {
         clientSignature: clientSignature,
         signatureName: signatureName,
         intSolution: 0,
+        serviceLocation: serviceLocation,
       );
 
       if (success) {
+        if (back) Get.back();
+
         Get.offAll((() => NavBarScreen()));
         Get.snackbar(
           "Closed ✅",
@@ -245,6 +249,7 @@ class ServiceRecordController extends GetxController {
         custodyId: selectedNewCustody!.id,
         oldSerial: oldSerialNumber.text,
         intuserId: mySharedPreferences.getUserData()!.userId,
+        serviceLocation: serviceLocation,
       );
 
       if (success) {

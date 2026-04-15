@@ -153,7 +153,6 @@ class AcceptedTicketCard extends StatelessWidget {
                           onPressed: controller.isOpening.value
                               ? null
                               : () async {
-                            /// اذا يوجد Record مفتوح وتريد فتح واحد جديد
                             if (controller.hasOpenedRecord.value &&
                                 data.ticketInfo.intServiceRecordID == 0) {
                               showWarning(

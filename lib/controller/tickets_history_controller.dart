@@ -14,7 +14,12 @@ class TicketHistoryController extends GetxController {
   var errorMessage = ''.obs;
 
   List<TicketData> data = [];
-
+  Rx<TotalCount> totalCount = TotalCount(
+    resolvedOnSite: 0,
+    resolvedOnWorkshop: 0,
+    unResolved: 0,
+    rejected: 0,
+  ).obs;
   Future<void> fetchTicketsHistory() async {
     try {
       isLoading(true);
@@ -26,6 +31,8 @@ class TicketHistoryController extends GetxController {
 
       if (result != null) {
         data = result.tickets;
+        totalCount.value = result.totalCount;
+        // data.assignAll(response.tickets);
         log('✅ Data received successfully: ${result.toJson()}');
       } else {
         errorMessage('Failed to load accepted tickets.');

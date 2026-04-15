@@ -22,12 +22,14 @@ class AddTicketController extends GetxController {
   );
   final TextEditingController faultNote = TextEditingController();
   final TextEditingController note = TextEditingController();
+  final formKey = GlobalKey<FormState>();
 
   RxString? selectedTicketType = RxString('');
   RxString? selectedCustomer = RxString('');
   RxString? selectedSubProduct = RxString('');
   RxString? selectedDeviceRef = RxString('');
   RxString? selectedSerial = RxString('');
+
   // RxString? selectedFault = RxString('');
   RxInt? selectedFault = RxInt(0);
   RxString? selectedArea = RxString('');
@@ -45,7 +47,6 @@ class AddTicketController extends GetxController {
   RxList<LookupDatum> deviceRefs = <LookupDatum>[].obs;
   RxList<LookupDatum> serials = <LookupDatum>[].obs;
   RxList<LookupDatum> faults = <LookupDatum>[].obs;
-
 
   final dropdownKey = GlobalKey<DropdownSearchState<LookupDatum>>();
 
@@ -171,7 +172,6 @@ class AddTicketController extends GetxController {
     try {
       final res = await TicketService.getFault(subProductFileId);
       if (res.lookupData.isNotEmpty) {
-
         faults.assignAll(res.lookupData);
       }
     } catch (e) {
@@ -412,36 +412,40 @@ class AddTicketController extends GetxController {
       isLoadingSubmit.value = true;
       List<String> missingFields = [];
 
-      if (callerName.text.isEmpty) missingFields.add("Caller Name");
-      if (selectedTicketType?.value.isEmpty ?? true) {
-        missingFields.add("Ticket Type");
-      }
-      if (customerId == 0 || selectedCustomer?.value.isEmpty == true) {
-        missingFields.add("Customer");
-      }
-      if (selectedSubProduct?.value.isEmpty ?? true) {
-        missingFields.add("Sub Product");
-      }
-      if (selectedSerial?.value.isEmpty ?? true) missingFields.add("Serial No");
-      if (selectedArea?.value.isEmpty ?? true) missingFields.add("Area");
-      if (selectedSubArea?.value.isEmpty ?? true) missingFields.add("Sub Area");
-      if (faultNote?.text.isEmpty ?? true) missingFields.add("Fault Note");
+      if (!formKey.currentState!.validate()) {
+        if (callerName.text.isEmpty) missingFields.add("Caller Name");
+        if (selectedTicketType?.value.isEmpty ?? true) {
+          missingFields.add("Ticket Type");
+        }
+        if (customerId == 0 || selectedCustomer?.value.isEmpty == true) {
+          missingFields.add("Customer");
+        }
+        if (selectedSubProduct?.value.isEmpty ?? true) {
+          missingFields.add("Sub Product");
+        }
+        if (selectedSerial?.value.isEmpty ?? true)
+          missingFields.add("Serial No");
+        if (selectedArea?.value.isEmpty ?? true) missingFields.add("Area");
+        if (selectedSubArea?.value.isEmpty ?? true)
+          missingFields.add("Sub Area");
+        if (faultNote?.text.isEmpty ?? true) missingFields.add("Fault Note");
 
-      if (missingFields.isNotEmpty) {
-        String fields = missingFields.join(", ");
+        if (missingFields.isNotEmpty) {
+          String fields = missingFields.join(", ");
 
-        Get.snackbar(
-          'Missing Required Fields',
-          '$fields ${missingFields.length > 1 ? "are" : "is"} required.',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: Colors.orange.shade100,
-          colorText: Colors.black87,
-          duration: const Duration(seconds: 4),
-          icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
-          margin: const EdgeInsets.all(12),
-          borderRadius: 12,
-        );
-        return;
+          Get.snackbar(
+            'Missing Required Fields',
+            '$fields ${missingFields.length > 1 ? "are" : "is"} required.',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Colors.orange.shade100,
+            colorText: Colors.black87,
+            duration: const Duration(seconds: 4),
+            icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+            margin: const EdgeInsets.all(12),
+            borderRadius: 12,
+          );
+          return;
+        }
       }
 
       final res = await TicketService.insertTicket(
@@ -534,9 +538,11 @@ class AddTicketController extends GetxController {
     serials.clear();
     areas.clear();
     subAreas.clear();
+    areaId = 0;
+    subAreaId = 0;
+
     zone.value = null;
 
     dropdownKey.currentState?.clear();
-
   }
 }

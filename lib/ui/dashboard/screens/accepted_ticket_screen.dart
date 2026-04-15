@@ -296,7 +296,7 @@ class AcceptedTicketsScreen extends StatelessWidget {
 
 void showRejectDialog(int ticketId) {
   final TextEditingController rejectController = TextEditingController();
-  final controller = Get.find<AcceptedTicketController>();
+  final controller = Get.put(AcceptedTicketController());
 
   final theme = Get.theme;
   final isDark = theme.brightness == Brightness.dark;

@@ -6,6 +6,7 @@ import 'package:ticket_app/utils/my_shared_preferences.dart';
 
 import '../model/service_record/assign_ticket_model.dart';
 import '../model/service_record/open_service_record_model.dart';
+import '../model/service_record/service_record_details_model.dart';
 import '../model/service_record/ticket_history_model.dart';
 import '../model/ticket/history_device_model.dart';
 import '../model/ticket/response_model.dart';
@@ -215,6 +216,7 @@ class ServiceRecordService {
     required String tripTime,
     required String clientSignature,
     required String signatureName,
+    required int serviceLocation,
   }) async {
     final uri = Uri.parse('${ApiUrl.baseUrl}${ApiUrl.closeServiceRecord}');
 
@@ -229,11 +231,13 @@ class ServiceRecordService {
       if (intuserId != 0) "intuserId": intuserId,
       if (unsolvedNote!.isNotEmpty) "strUnsolvedNote": unsolvedNote,
       "strTripTime": tripTime,
+
       "bytClientSig": clientSignature,
       "signature_name": signatureName,
       if (custodyId != 0) "custodyId": custodyId,
       if (oldSerial != null || oldSerial != "" || oldSerial!.isNotEmpty)
         "oldSerial": oldSerial,
+      "serviceLocation": serviceLocation,
     });
 
     try {
@@ -369,15 +373,16 @@ class ServiceRecordService {
       return ServiceRecordResponse.fromJson({});
     }
   }
+
   static Future<DeviceHistoryModel?> getDeviceHistory({
     required int subProductFileId,
     int count = 10,
   }) async {
     final uri = Uri.parse(
-      // '${ApiUrl.baseUrl}/api/ServiceRecord/GetDeviceHistory'
-      //     '?subProductFileId=$subProductFileId&count=$count',
-      'http://10.0.0.63:9096/api/ServiceRecord/GetDeviceHistory'
+      '${ApiUrl.baseUrl}ServiceRecord/GetDeviceHistory'
           '?subProductFileId=$subProductFileId&count=$count',
+      // 'http://10.0.0.63:9096/api/ServiceRecord/GetDeviceHistory'
+      // '?subProductFileId=$subProductFileId&count=$count',
     );
 
     try {
@@ -396,6 +401,37 @@ class ServiceRecordService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return DeviceHistoryModel.fromJson(data);
+      } else {
+        log('⚠️ [Error] Invalid status: ${response.statusCode}');
+        return null;
+      }
+    } catch (e, stack) {
+      log('❌ [Exception] $e');
+      log('$stack');
+      return null;
+    }
+  }
+  static Future<ServiceRecordDetailsModel?> getServiceRecordByTicketId(int ticketId) async {
+    final uri = Uri.parse(
+      '${ApiUrl.baseUrl}ServiceRecord/GetByTicketId?TicketId=$ticketId',
+    );
+
+    try {
+      log('➡️ [GET] $uri');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      log('✅ [Response ${response.statusCode}] => ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return ServiceRecordDetailsModel.fromJson(data);
       } else {
         log('⚠️ [Error] Invalid status: ${response.statusCode}');
         return null;

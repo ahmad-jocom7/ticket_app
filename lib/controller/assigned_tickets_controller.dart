@@ -2,6 +2,8 @@ import 'dart:developer';
 import 'dart:ui';
 import 'package:get/get.dart';
 import 'package:ticket_app/controller/accepted_tickets_controller.dart';
+import 'package:ticket_app/controller/main_controller.dart';
+import 'package:ticket_app/ui/nav_bar_screen.dart';
 
 import '../model/service_record/assign_ticket_model.dart';
 import '../service/service_record_service.dart';
@@ -73,6 +75,10 @@ class AssignedTicketController extends GetxController {
           backgroundColor: const Color(0xFFD0F0C0),
           colorText: const Color(0xFF0D3D0D),
         );
+        if (data.length == 1) {
+          MainController.to.selected = 0;
+          Get.off(() => NavBarScreen());
+        }
         await fetchAssignedTickets();
         await AcceptedTicketController.to.fetchAcceptedTickets();
         await AcceptedTicketHomeController.to.fetchAcceptedTickets();
