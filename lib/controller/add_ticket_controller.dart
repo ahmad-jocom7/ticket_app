@@ -3,15 +3,14 @@ import 'dart:developer';
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:ticket_app/utils/my_shared_preferences.dart';
 import 'package:ticket_app/model/ticket/response_model.dart';
 import 'package:ticket_app/service/ticket_service.dart';
+import 'package:ticket_app/utils/my_shared_preferences.dart';
 
 import '../model/ticket/zone_model.dart';
 import '../ui/dashboard/screens/new_ticket_screen.dart';
 
 class AddTicketController extends GetxController {
-  // Singleton GetX controller
   static AddTicketController get to => Get.isRegistered<AddTicketController>()
       ? Get.find<AddTicketController>()
       : Get.put(AddTicketController());
@@ -29,8 +28,6 @@ class AddTicketController extends GetxController {
   RxString? selectedSubProduct = RxString('');
   RxString? selectedDeviceRef = RxString('');
   RxString? selectedSerial = RxString('');
-
-  // RxString? selectedFault = RxString('');
   RxInt? selectedFault = RxInt(0);
   RxString? selectedArea = RxString('');
   RxString? selectedSubArea = RxString('');
@@ -52,11 +49,20 @@ class AddTicketController extends GetxController {
 
   RxBool isLoading = false.obs;
   RxBool isLoadingSubmit = false.obs;
+  RxBool isLoadingCustomerDependencies = false.obs;
+  RxBool isResolvingDeviceData = false.obs;
+  RxBool hasInitialDataLoaded = false.obs;
+  RxString initializationError = ''.obs;
 
   int customerId = 0;
   int areaId = 0;
   int subAreaId = 0;
   int subProductFileId = 0;
+  int _customerLoadRequestId = 0;
+  int _serialLookupRequestId = 0;
+  int _deviceRefLookupRequestId = 0;
+  int _areaSelectionRequestId = 0;
+  int _subAreaSelectionRequestId = 0;
 
   @override
   void onInit() {
@@ -66,11 +72,31 @@ class AddTicketController extends GetxController {
 
   Future<void> loadInitialData() async {
     isLoading.value = true;
+    hasInitialDataLoaded.value = false;
+    initializationError.value = '';
+
     try {
-      await Future.wait([getTicketTypes(), getCustomers()]);
+      await getTicketTypes();
+
+      if (ticketTypes.isEmpty) {
+        initializationError.value =
+            'Unable to load the required screen data. Please try again.';
+        return;
+      }
+
+      hasInitialDataLoaded.value = true;
+    } catch (e, stack) {
+      log('Error loading initial add-ticket data: $e');
+      log('$stack');
+      initializationError.value =
+          'Unable to load the required screen data. Please try again.';
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> retryInitialLoad() async {
+    await loadInitialData();
   }
 
   Future<void> getTicketTypes() async {
@@ -102,14 +128,12 @@ class AddTicketController extends GetxController {
     int customerId, {
     int area = 0,
     int subarea = 0,
-    String storedProcedure = "ddl_subProductByCustomer",
   }) async {
     subProducts.clear();
     final res = await TicketService.getSubProduct(
       customerId,
       area: area,
       subArea: subarea,
-      // storedProcedure: storedProcedure,
     );
     if (res.lookupData.isNotEmpty) {
       subProducts.assignAll(res.lookupData);
@@ -153,17 +177,16 @@ class AddTicketController extends GetxController {
   }
 
   Future<void> getZones(int areaId) async {
-    zone.value = null; // تنظيف القيم السابقة
+    zone.value = null;
     try {
       final res = await TicketService.getZone(areaId);
-
       if (res.intZoneId != 0) {
         zone.value = res;
-        log('✅ Zone loaded: ${res.strAreaName}');
+        log('Zone loaded: ${res.strAreaName}');
       }
     } catch (e, stack) {
-      log('❌ Error fetching zone: $e');
-      log("$stack");
+      log('Error fetching zone: $e');
+      log('$stack');
     }
   }
 
@@ -175,13 +198,18 @@ class AddTicketController extends GetxController {
         faults.assignAll(res.lookupData);
       }
     } catch (e) {
-      log('❌ Error fetching faults: $e');
+      log('Error fetching faults: $e');
     }
   }
 
   Future<void> getSubProductFileBySerial(String serialNoId) async {
+    final requestId = ++_serialLookupRequestId;
+    isResolvingDeviceData.value = true;
     try {
       final res = await TicketService.getSubProductFileBySerialNo(serialNoId);
+      if (requestId != _serialLookupRequestId) {
+        return;
+      }
 
       if (res.intSubProductId != 0) {
         subProductFileId = res.intSubProductIdFile;
@@ -189,18 +217,29 @@ class AddTicketController extends GetxController {
           (e) => e.intLookupId == res.intSubProductId,
         );
         await getFaults(subProductFileId);
+        if (requestId != _serialLookupRequestId) {
+          return;
+        }
 
         if (subProduct != null) {
           selectedSubProduct?.value = subProduct.strLookupText;
         }
+
         final area = areas.firstWhereOrNull(
           (e) => e.intLookupId == res.intAreaId,
         );
         if (area != null) {
           selectedArea?.value = area.strLookupText;
+          areaId = area.intLookupId;
 
           await getSubAreas(res.intAreaId);
+          if (requestId != _serialLookupRequestId) {
+            return;
+          }
           await getZones(res.intAreaId);
+          if (requestId != _serialLookupRequestId) {
+            return;
+          }
         }
 
         final subArea = subAreas.firstWhereOrNull(
@@ -208,29 +247,42 @@ class AddTicketController extends GetxController {
         );
         if (subArea != null) {
           selectedSubArea?.value = subArea.strLookupText;
+          subAreaId = subArea.intLookupId;
         }
 
         lockFieldsAfterSerialSelection.value = true;
 
         log(
-          '✅ Loaded from SerialNo: '
-          'SubProduct=${selectedSubProduct?.value}, '
-          'SubProductFile=${res.intSubProductIdFile}, '
-          'Area=${selectedArea?.value}, '
-          'SubArea=${selectedSubArea?.value}',
+          'Loaded from serial: '
+          'subProduct=${selectedSubProduct?.value}, '
+          'subProductFile=${res.intSubProductIdFile}, '
+          'area=${selectedArea?.value}, '
+          'subArea=${selectedSubArea?.value}',
         );
       }
     } catch (e) {
-      log('❌ Error fetching SubProductFile by SerialNo: $e');
+      log('Error fetching sub-product file by serial: $e');
+      _showErrorSnackbar(
+        'Unable to load the serial details right now. Please try again.',
+      );
+    } finally {
+      if (requestId == _serialLookupRequestId) {
+        isResolvingDeviceData.value = false;
+      }
     }
   }
 
   Future<void> getSubProductFileByDeviceRef(String deviceRefId) async {
+    final requestId = ++_deviceRefLookupRequestId;
+    isResolvingDeviceData.value = true;
     try {
       final res = await TicketService.getSubProductFileByCustomerRefNo(
         customerId,
         deviceRefId,
       );
+      if (requestId != _deviceRefLookupRequestId) {
+        return;
+      }
 
       if (res.intSubProductId != 0) {
         subProductFileId = res.intSubproductFileId;
@@ -238,16 +290,21 @@ class AddTicketController extends GetxController {
           (e) => e.intLookupId == res.intSubProductId,
         );
         await getFaults(subProductFileId);
+        if (requestId != _deviceRefLookupRequestId) {
+          return;
+        }
 
         if (subProduct != null) {
           selectedSubProduct?.value = subProduct.strLookupText;
         }
-        final serialNo = serials.firstWhereOrNull(
-          (e) => e.strLookupId == res.strSerialNumber,
-        );
 
+        final serialNo = serials.firstWhereOrNull(
+          (e) =>
+              e.strLookupId == res.strSerialNumber ||
+              e.strLookupText == res.strSerialNumber,
+        );
         if (serialNo != null) {
-          selectedSerial!.value = subProduct!.intLookupId.toString();
+          selectedSerial!.value = serialNo.strLookupText;
         }
 
         final area = areas.firstWhereOrNull(
@@ -255,9 +312,16 @@ class AddTicketController extends GetxController {
         );
         if (area != null) {
           selectedArea?.value = area.strLookupText;
+          areaId = area.intLookupId;
 
           await getSubAreas(res.intAreaId);
+          if (requestId != _deviceRefLookupRequestId) {
+            return;
+          }
           await getZones(res.intAreaId);
+          if (requestId != _deviceRefLookupRequestId) {
+            return;
+          }
         }
 
         final subArea = subAreas.firstWhereOrNull(
@@ -265,20 +329,28 @@ class AddTicketController extends GetxController {
         );
         if (subArea != null) {
           selectedSubArea?.value = subArea.strLookupText;
+          subAreaId = subArea.intLookupId;
         }
 
         lockFieldsAfterSerialSelection.value = true;
         lockFieldSerialNo.value = true;
         log(
-          '✅ Loaded from SerialNo: '
-          'SubProduct=${selectedSubProduct?.value}, '
-          'SubProductFile=${res.intSubproductFileId}, '
-          'Area=${selectedArea?.value}, '
-          'SubArea=${selectedSubArea?.value}',
+          'Loaded from device ref: '
+          'subProduct=${selectedSubProduct?.value}, '
+          'subProductFile=${res.intSubproductFileId}, '
+          'area=${selectedArea?.value}, '
+          'subArea=${selectedSubArea?.value}',
         );
       }
     } catch (e) {
-      log('❌ Error fetching SubProductFile by SerialNo: $e');
+      log('Error fetching sub-product file by device ref: $e');
+      _showErrorSnackbar(
+        'Unable to load the device reference details right now. Please try again.',
+      );
+    } finally {
+      if (requestId == _deviceRefLookupRequestId) {
+        isResolvingDeviceData.value = false;
+      }
     }
   }
 
@@ -286,120 +358,163 @@ class AddTicketController extends GetxController {
     selectedTicketType?.value = value ?? '';
   }
 
-  void onCustomerSelected(LookupDatum? customer) async {
-    if (customer == null) return;
+  Future<void> onCustomerSelected(LookupDatum? customer) async {
+    if (customer == null) {
+      return;
+    }
 
+    final requestId = ++_customerLoadRequestId;
     selectedCustomer?.value = customer.strLookupText;
     customerId = customer.intLookupId;
+    _resetDependentFields(clearCustomer: false);
 
-    subProducts.clear();
-    deviceRefs.clear();
-    serials.clear();
-    areas.clear();
+    isLoadingCustomerDependencies.value = true;
+    try {
+      await Future.wait([
+        getSubProducts(customerId),
+        getDeviceRefs(customerId),
+        getAreas(customerId),
+        getSerials(customerId),
+      ]);
+      if (requestId != _customerLoadRequestId) {
+        return;
+      }
+    } catch (e, stack) {
+      log('Error loading customer dependencies: $e');
+      log('$stack');
+      _showErrorSnackbar(
+        'Unable to load customer data right now. Please try selecting the customer again.',
+      );
+    } finally {
+      if (requestId == _customerLoadRequestId) {
+        isLoadingCustomerDependencies.value = false;
+      }
+    }
+  }
+
+  Future<void> onAreaSelected(String? value) async {
+    selectedArea?.value = value ?? '';
+
+    if (value == null || value.isEmpty) {
+      return;
+    }
+
+    final area = areas.firstWhereOrNull((e) => e.strLookupText == value);
+    if (area == null) {
+      return;
+    }
+
+    final requestId = ++_areaSelectionRequestId;
+    areaId = area.intLookupId;
+    subAreaId = 0;
     subAreas.clear();
     zone.value = null;
-    selectedSubProduct?.value = '';
-    selectedDeviceRef?.value = '';
-    selectedSerial?.value = '';
-    selectedFault?.value = 0;
-    // selectedFault?.value = "";
-    selectedArea?.value = '';
+    subProducts.clear();
+    serials.clear();
+    faults.clear();
+    subProductFileId = 0;
     selectedSubArea?.value = '';
     selectedZone?.value = '';
+    selectedSubProduct?.value = '';
+    selectedSerial?.value = '';
+    selectedDeviceRef?.value = '';
+    selectedFault?.value = 0;
     lockFieldsAfterSerialSelection.value = false;
     lockFieldSerialNo.value = false;
 
-    await getSubProducts(customerId);
-    await getDeviceRefs(customerId);
-    await getAreas(customerId);
+    await getSubAreas(areaId);
+    if (requestId != _areaSelectionRequestId) {
+      return;
+    }
+    await getZones(areaId);
+    if (requestId != _areaSelectionRequestId) {
+      return;
+    }
+    await getSubProducts(customerId, area: areaId);
+    if (requestId != _areaSelectionRequestId) {
+      return;
+    }
     await getSerials(customerId);
   }
 
-  void onAreaSelected(String? value) async {
-    selectedArea?.value = value ?? '';
-
-    if (value != null && value.isNotEmpty) {
-      final area = areas.firstWhereOrNull((e) => e.strLookupText == value);
-
-      if (area != null) {
-        areaId = area.intLookupId;
-        subAreas.clear();
-        zone.value = null;
-        subProducts.clear();
-        serials.clear();
-
-        selectedSubArea?.value = '';
-        selectedZone?.value = '';
-        selectedSubProduct?.value = '';
-        selectedSerial?.value = '';
-        await getSubAreas(areaId);
-        await getZones(areaId);
-        await getSubProducts(customerId, area: areaId);
-        await getSerials(customerId);
-      }
-    }
-  }
-
-  void onSubAreaSelected(String? value) async {
+  Future<void> onSubAreaSelected(String? value) async {
     selectedSubArea?.value = value ?? '';
 
-    if (value != null && value.isNotEmpty) {
-      final subArea = subAreas.firstWhereOrNull(
-        (e) => e.strLookupText == value,
-      );
-
-      if (subArea != null) {
-        subAreaId = subArea.intLookupId;
-
-        subProducts.clear();
-        serials.clear();
-        selectedSubProduct?.value = "";
-        selectedSerial?.value = "";
-
-        await getSubProducts(customerId, subarea: subAreaId);
-        await getSerials(customerId);
-      }
+    if (value == null || value.isEmpty) {
+      return;
     }
+
+    final subArea = subAreas.firstWhereOrNull(
+      (e) => e.strLookupText == value,
+    );
+
+    if (subArea == null) {
+      return;
+    }
+
+    final requestId = ++_subAreaSelectionRequestId;
+    subAreaId = subArea.intLookupId;
+    subProducts.clear();
+    serials.clear();
+    faults.clear();
+    subProductFileId = 0;
+    selectedSubProduct?.value = '';
+    selectedSerial?.value = '';
+    selectedDeviceRef?.value = '';
+    selectedFault?.value = 0;
+    lockFieldsAfterSerialSelection.value = false;
+    lockFieldSerialNo.value = false;
+
+    await getSubProducts(customerId, subarea: subAreaId);
+    if (requestId != _subAreaSelectionRequestId) {
+      return;
+    }
+    await getSerials(customerId);
   }
 
   void onZoneSelected(String? value) {
     selectedZone?.value = value ?? '';
   }
 
-  void onSubProductSelected(String? value) async {
+  void onSubProductSelected(String? value) {
     selectedSubProduct?.value = value ?? '';
-
-    if (value != null && value.isNotEmpty) {
-      // final subProduct = subProducts.firstWhereOrNull(
-      //   (e) => e.strLookupText == value,
-      // );
-
-      // if (subProduct != null) {
-      //   final subProductId = subProduct.intLookupId;
-      // }
-    }
+    selectedFault?.value = 0;
+    faults.clear();
   }
 
   void onDeviceRefSelected(String? value) {
     selectedDeviceRef?.value = value ?? '';
-    getSubProductFileByDeviceRef(selectedDeviceRef!.value);
+    selectedFault?.value = 0;
+    faults.clear();
+    subProductFileId = 0;
+
+    if (selectedDeviceRef!.value.isNotEmpty) {
+      getSubProductFileByDeviceRef(selectedDeviceRef!.value);
+    }
   }
 
-  void onSerialSelected(String? value) async {
+  Future<void> onSerialSelected(String? value) async {
     selectedSerial?.value = value ?? '';
+    selectedFault?.value = 0;
+    faults.clear();
+    subProductFileId = 0;
 
-    if (value != null && value.isNotEmpty) {
-      final serial = serials.firstWhereOrNull(
-        (e) => e.strLookupId == value || e.strLookupText == value,
-      );
+    if (value == null || value.isEmpty) {
+      return;
+    }
 
-      if (serial != null) {
-        final serialNo = serial.strLookupId ?? serial.strLookupText ?? '';
-        if (serialNo.isNotEmpty) {
-          log('➡️ Fetching serial file for: $serialNo');
-          await getSubProductFileBySerial(serialNo);
-        }
-      }
+    final serial = serials.firstWhereOrNull(
+      (e) => e.strLookupId == value || e.strLookupText == value,
+    );
+
+    if (serial == null) {
+      return;
+    }
+
+    final serialNo = serial.strLookupId ?? serial.strLookupText ?? '';
+    if (serialNo.toString().isNotEmpty) {
+      log('Fetching serial file for: $serialNo');
+      await getSubProductFileBySerial(serialNo.toString());
     }
   }
 
@@ -408,44 +523,63 @@ class AddTicketController extends GetxController {
   }
 
   Future<void> insertTicket() async {
+    if (!hasInitialDataLoaded.value || isLoading.value) {
+      _showErrorSnackbar(
+        'The screen is still preparing required data. Please wait a moment.',
+      );
+      return;
+    }
+
+    if (isLoadingCustomerDependencies.value || isResolvingDeviceData.value) {
+      _showErrorSnackbar(
+        'Please wait until the related data finishes loading before saving.',
+      );
+      return;
+    }
+
     try {
       isLoadingSubmit.value = true;
-      List<String> missingFields = [];
+      final missingFields = <String>[];
 
       if (!formKey.currentState!.validate()) {
-        if (callerName.text.isEmpty) missingFields.add("Caller Name");
+        if (callerName.text.isEmpty) missingFields.add('Caller Name');
         if (selectedTicketType?.value.isEmpty ?? true) {
-          missingFields.add("Ticket Type");
+          missingFields.add('Ticket Type');
         }
         if (customerId == 0 || selectedCustomer?.value.isEmpty == true) {
-          missingFields.add("Customer");
+          missingFields.add('Customer');
         }
         if (selectedSubProduct?.value.isEmpty ?? true) {
-          missingFields.add("Sub Product");
+          missingFields.add('Sub Product');
         }
-        if (selectedSerial?.value.isEmpty ?? true)
-          missingFields.add("Serial No");
-        if (selectedArea?.value.isEmpty ?? true) missingFields.add("Area");
-        if (selectedSubArea?.value.isEmpty ?? true)
-          missingFields.add("Sub Area");
-        if (faultNote?.text.isEmpty ?? true) missingFields.add("Fault Note");
-
-        if (missingFields.isNotEmpty) {
-          String fields = missingFields.join(", ");
-
-          Get.snackbar(
-            'Missing Required Fields',
-            '$fields ${missingFields.length > 1 ? "are" : "is"} required.',
-            snackPosition: SnackPosition.TOP,
-            backgroundColor: Colors.orange.shade100,
-            colorText: Colors.black87,
-            duration: const Duration(seconds: 4),
-            icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
-            margin: const EdgeInsets.all(12),
-            borderRadius: 12,
-          );
-          return;
+        if (selectedSerial?.value.isEmpty ?? true) {
+          missingFields.add('Serial No');
         }
+        if (selectedArea?.value.isEmpty ?? true) missingFields.add('Area');
+        if (selectedSubArea?.value.isEmpty ?? true) {
+          missingFields.add('Sub Area');
+        }
+        if (faultNote.text.isEmpty) missingFields.add('Fault Note');
+      }
+
+      if (subProductFileId == 0) {
+        missingFields.add('Valid device selection');
+      }
+
+      if (missingFields.isNotEmpty) {
+        final fields = missingFields.join(', ');
+        Get.snackbar(
+          'Missing Required Fields',
+          '$fields ${missingFields.length > 1 ? "are" : "is"} required.',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.orange.shade100,
+          colorText: Colors.black87,
+          duration: const Duration(seconds: 4),
+          icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+          margin: const EdgeInsets.all(12),
+          borderRadius: 12,
+        );
+        return;
       }
 
       final res = await TicketService.insertTicket(
@@ -459,7 +593,7 @@ class AddTicketController extends GetxController {
       );
 
       if (res.status == true) {
-        log('🎫 Ticket Created Successfully: ID = ${res.ticketId}');
+        log('Ticket created successfully: ID = ${res.ticketId}');
         await TicketService.assignTicket(ticketId: res.ticketId.toString());
         Get.off(() => AssignedTicketsScreen());
 
@@ -476,9 +610,9 @@ class AddTicketController extends GetxController {
         );
         clearAll();
       } else {
-        log('⚠️ Failed to create ticket: ${res.message}');
+        log('Failed to create ticket: ${res.message}');
         Get.snackbar(
-          '❌ Error',
+          'Error',
           res.message.isNotEmpty ? res.message : 'Failed to insert ticket.',
           snackPosition: SnackPosition.TOP,
           backgroundColor: Colors.red.shade100,
@@ -490,18 +624,10 @@ class AddTicketController extends GetxController {
         );
       }
     } catch (e, stack) {
-      log('❌ Exception in insertTicket: $e');
+      log('Exception in insertTicket: $e');
       log('$stack');
-      Get.snackbar(
-        'Error',
+      _showErrorSnackbar(
         'An unexpected error occurred while creating the ticket.',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red.shade100,
-        colorText: Colors.black87,
-        duration: const Duration(seconds: 4),
-        icon: const Icon(Icons.error_outline, color: Colors.red),
-        margin: const EdgeInsets.all(12),
-        borderRadius: 12,
       );
     } finally {
       isLoadingSubmit.value = false;
@@ -510,39 +636,81 @@ class AddTicketController extends GetxController {
 
   @override
   void onClose() {
-    // callerName.dispose();
-    // receivedBy.dispose();
-    // faultNote.dispose();
-    // note.dispose();
+    callerName.dispose();
+    receivedBy.dispose();
+    faultNote.dispose();
+    note.dispose();
     super.onClose();
   }
 
   void clearAll() {
     selectedTicketType?.value = '';
-    selectedCustomer?.value = '';
+    isLoadingCustomerDependencies.value = false;
+    isResolvingDeviceData.value = false;
+    _customerLoadRequestId++;
+    _serialLookupRequestId++;
+    _deviceRefLookupRequestId++;
+    _areaSelectionRequestId++;
+    _subAreaSelectionRequestId++;
+    _resetDependentFields();
+    callerName.clear();
+    note.clear();
+    faultNote.clear();
+    formKey.currentState?.reset();
+    dropdownKey.currentState?.clear();
+  }
+
+  bool get isScreenReady => hasInitialDataLoaded.value && !isLoading.value;
+
+  bool get hasCustomerSelected =>
+      (selectedCustomer?.value.isNotEmpty ?? false) && customerId != 0;
+
+  bool get shouldLockDependentFields =>
+      !hasCustomerSelected ||
+      isLoadingCustomerDependencies.value ||
+      isResolvingDeviceData.value;
+
+  void _resetDependentFields({bool clearCustomer = true}) {
+    if (clearCustomer) {
+      selectedCustomer?.value = '';
+      customerId = 0;
+    }
+
     selectedSubProduct?.value = '';
     selectedDeviceRef?.value = '';
     selectedSerial?.value = '';
     selectedFault?.value = 0;
-    // selectedFault?.value = "";
     selectedArea?.value = '';
     selectedSubArea?.value = '';
     selectedZone?.value = '';
-    callerName.clear();
-    // receivedBy.clear();
-    note.clear();
-    faultNote.clear();
-    faultNote.clear();
+
+    lockFieldsAfterSerialSelection.value = false;
+    lockFieldSerialNo.value = false;
+
     subProducts.clear();
     deviceRefs.clear();
     serials.clear();
     areas.clear();
     subAreas.clear();
+    faults.clear();
+
     areaId = 0;
     subAreaId = 0;
-
+    subProductFileId = 0;
     zone.value = null;
+  }
 
-    dropdownKey.currentState?.clear();
+  void _showErrorSnackbar(String message) {
+    Get.snackbar(
+      'Error',
+      message,
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.red.shade100,
+      colorText: Colors.black87,
+      duration: const Duration(seconds: 4),
+      icon: const Icon(Icons.error_outline, color: Colors.red),
+      margin: const EdgeInsets.all(12),
+      borderRadius: 12,
+    );
   }
 }

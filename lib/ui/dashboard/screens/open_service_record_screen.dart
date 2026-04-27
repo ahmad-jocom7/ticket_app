@@ -50,7 +50,7 @@ class _OpenServiceRecordScreenState extends State<OpenServiceRecordScreen> {
             const SizedBox(height: 8),
             _ticketInfoCard(),
 
-            const SizedBox(height: 25),
+            const SizedBox(height: 10),
 
             // 🔹 Section: Repair / Replace Details
             Text("Service Details", style: sectionTitleStyle),
@@ -67,7 +67,7 @@ class _OpenServiceRecordScreenState extends State<OpenServiceRecordScreen> {
               },
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 10),
 
             // 🔹 Save Button
             SizedBox(
@@ -113,6 +113,8 @@ class _OpenServiceRecordScreenState extends State<OpenServiceRecordScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 20),
+
           ],
         ),
       ),
@@ -250,15 +252,30 @@ class _OpenServiceRecordScreenState extends State<OpenServiceRecordScreen> {
     if (controller.isRepair) {
       return Form(
         key: _formKey,
-        child: _textInput(
-          validator: (value) {
-            if (value!.isEmpty || value == null) {
-              return "please enter repair note";
-            }
-          },
-          "Repair Note",
-          controller: controller.repairNoteController,
-          maxLines: 5,
+        child: Column(
+          children: [
+            _textInput(
+              // validator: (value) {
+              //   if (value!.isEmpty || value == null) {
+              //     return "please enter repair note";
+              //   }
+              // },
+              "Actual Fault",
+              controller: controller.actualFault,
+              maxLines: 2,
+            ),
+            _textInput(
+              validator: (value) {
+                if (value!.isEmpty || value == null) {
+                  return "please enter repair note";
+                }
+              },
+              "Repair Note",
+              controller: controller.repairNoteController,
+              maxLines: 4,
+            ),
+
+          ],
         ),
       );
     } else {

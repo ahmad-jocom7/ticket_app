@@ -213,6 +213,7 @@ class ServiceRecordService {
     int? unsolvedReasonId,
     int? intuserId = 0,
     String? unsolvedNote,
+    String? actualFault,
     required String tripTime,
     required String clientSignature,
     required String signatureName,
@@ -230,6 +231,7 @@ class ServiceRecordService {
       if (unsolvedReasonId != 0) "intUnsolvedReasonId": unsolvedReasonId,
       if (intuserId != 0) "intuserId": intuserId,
       if (unsolvedNote!.isNotEmpty) "strUnsolvedNote": unsolvedNote,
+      if (actualFault!.isNotEmpty) "actualFault": actualFault,
       "strTripTime": tripTime,
 
       "bytClientSig": clientSignature,

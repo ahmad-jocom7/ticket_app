@@ -1,9 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
+
 import 'package:http/http.dart' as http;
-import '../utils/api_url.dart';
+
 import '../model/auth/login_model.dart';
+import '../utils/api_url.dart';
+
 class MyHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
@@ -23,24 +27,56 @@ class AuthService {
     );
 
     try {
-      log('➡️ [GET] $uri');
-      final response = await http.get(uri, headers: {
-        'Accept': 'application/json',
-      });
+      log('[GET] $uri');
+      final response = await http
+          .get(uri, headers: {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 20));
 
-      log('✅ [Response ${response.statusCode}] => ${response.body}');
+      log('[Response ${response.statusCode}] => ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return LoginResponse.fromJson(data);
-      } else {
-        log('⚠️ Invalid status code: ${response.statusCode}');
-        return null;
       }
-    } catch (e, stack) {
-      log('❌ Exception during login: $e');
+
+      log('Invalid status code: ${response.statusCode}');
+      String message = 'Unable to reach the login service right now.';
+
+      try {
+        final data = jsonDecode(response.body);
+        if (data is Map<String, dynamic>) {
+          final backendMessage = data['message']?.toString().trim() ?? '';
+          if (backendMessage.isNotEmpty) {
+            message = backendMessage;
+          }
+        }
+      } catch (_) {}
+
+      return LoginResponse(
+        status: response.statusCode,
+        message: message,
+      );
+    } on TimeoutException catch (e, stack) {
+      log('Login timeout: $e');
       log('$stack');
-      return null;
+      return LoginResponse(
+        status: 0,
+        message: 'The connection is taking too long. Please try again.',
+      );
+    } on SocketException catch (e, stack) {
+      log('Login socket exception: $e');
+      log('$stack');
+      return LoginResponse(
+        status: 0,
+        message: 'Please check your internet connection and try again.',
+      );
+    } catch (e, stack) {
+      log('Exception during login: $e');
+      log('$stack');
+      return LoginResponse(
+        status: 0,
+        message: 'Something went wrong while logging in. Please try again.',
+      );
     }
   }
 }

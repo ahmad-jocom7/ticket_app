@@ -79,8 +79,6 @@ class HomeScreen extends StatelessWidget {
             ),
 
             const SizedBox(height: 28),
-
-            // 🔹 Menu Grid
             GridView.count(
               childAspectRatio: isTablet ? 1.2 : 1,
               crossAxisCount: isTablet ? 3 : 2,
@@ -183,9 +181,12 @@ class HomeScreen extends StatelessWidget {
               child: Text(
                 title,
                 textAlign: TextAlign.center,
-                style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),            const SizedBox(height: 6),
+            ),
+            const SizedBox(height: 6),
             Container(
               height: 3,
               width: 40,

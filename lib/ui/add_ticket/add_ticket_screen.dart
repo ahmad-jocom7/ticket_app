@@ -7,7 +7,6 @@ import '../../utils/color_app.dart';
 import '../../controller/add_ticket_controller.dart';
 import '../../model/ticket/response_model.dart';
 import '../../service/ticket_service.dart';
-import 'add_serial_number_dialog.dart';
 
 class AddTicketScreen extends StatelessWidget {
   AddTicketScreen({super.key});
@@ -23,39 +22,54 @@ class AddTicketScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Add Ticket'),
         actions: [
-          TextButton(
-            onPressed: controller.clearAll,
-            child: const Text("CLEAR", style: TextStyle(color: Colors.white)),
+          Obx(
+            () => TextButton(
+              onPressed: controller.isScreenReady ? controller.clearAll : null,
+              child: Text(
+                "CLEAR",
+                style: TextStyle(
+                  color: controller.isScreenReady
+                      ? Colors.white
+                      : Colors.white70,
+                ),
+              ),
+            ),
           ),
         ],
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
+          return const _InitialLoadingView();
         }
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Form(
-            key: controller.formKey,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: isDark
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: Colors.grey.withValues(alpha: 0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+        if (!controller.isScreenReady) {
+          return _InitialErrorView(controller: controller);
+        }
+
+        return Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Form(
+                key: controller.formKey,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: isDark
+                        ? []
+                        : [
+                            BoxShadow(
+                              color: Colors.grey.withValues(alpha: 0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                   Row(
                     children: [
                       CircleAvatar(
@@ -98,7 +112,6 @@ class AddTicketScreen extends StatelessWidget {
                     ),
                   ),
 
-                  // Customer
                   Obx(
                     () => DropdownFieldCustomerWidget(
                       label: 'Customer Name',
@@ -108,13 +121,13 @@ class AddTicketScreen extends StatelessWidget {
                             e.strLookupText ==
                             controller.selectedCustomer!.value,
                       ),
-                      onChanged: (p0) {
-                        controller.onCustomerSelected(p0);
-                      },
+                      onChanged: controller.onCustomerSelected,
+                      enabled:
+                          !controller.isLoadingCustomerDependencies.value &&
+                          !controller.isResolvingDeviceData.value,
                     ),
                   ),
 
-                  // Caller Name
                   InputFieldWidget(
                     required: true,
                     label: 'Caller Name',
@@ -141,6 +154,7 @@ class AddTicketScreen extends StatelessWidget {
                           .map((e) => e.strLookupText)
                           .toList(),
                       onChanged: controller.onDeviceRefSelected,
+                      readOnly: controller.shouldLockDependentFields,
                     ),
                   ),
                   Obx(
@@ -149,7 +163,9 @@ class AddTicketScreen extends StatelessWidget {
                         Expanded(
                           child: DropdownFieldWidget(
                             required: true,
-                            readOnly: controller.lockFieldSerialNo.value,
+                            readOnly:
+                                controller.lockFieldSerialNo.value ||
+                                controller.shouldLockDependentFields,
                             label: 'S/N',
                             icon: Icons.numbers_outlined,
                             value:
@@ -162,40 +178,6 @@ class AddTicketScreen extends StatelessWidget {
                             onChanged: controller.onSerialSelected,
                           ),
                         ),
-                        // if (controller.selectedTicketType?.value
-                        //         .toLowerCase() ==
-                        //     "internal ticket") ...[
-                        //   SizedBox(width: 5),
-                        //   SizedBox(
-                        //     height: 42,
-                        //     child: FilledButton(
-                        //       onPressed: () {
-                        //         Get.dialog(
-                        //           AddSerialDialog(
-                        //             customerId:
-                        //                 controller.selectedCustomer!.value,
-                        //           ),
-                        //         );
-                        //       },
-                        //       style: FilledButton.styleFrom(
-                        //         backgroundColor: ColorApp.primary,
-                        //         padding: const EdgeInsets.symmetric(
-                        //           horizontal: 16,
-                        //         ),
-                        //         shape: RoundedRectangleBorder(
-                        //           borderRadius: BorderRadius.circular(10),
-                        //         ),
-                        //       ),
-                        //       child: const Text(
-                        //         "Add",
-                        //         style: TextStyle(
-                        //           fontSize: 12,
-                        //           fontWeight: FontWeight.w600,
-                        //         ),
-                        //       ),
-                        //     ),
-                        //   ),
-                        // ],
                       ],
                     ),
                   ),
@@ -212,13 +194,13 @@ class AddTicketScreen extends StatelessWidget {
                           .map((e) => e.strLookupText)
                           .toList(),
                       onChanged: controller.onSubProductSelected,
-                      readOnly: controller.lockFieldsAfterSerialSelection.value,
+                      readOnly:
+                          controller.lockFieldsAfterSerialSelection.value ||
+                          controller.shouldLockDependentFields,
                     ),
                   ),
 
                   const SizedBox(height: 10),
-
-                  // Serial
                   Obx(() {
                     return DropdownFieldWidget2(
                       key: ValueKey(controller.faults.length),
@@ -237,6 +219,7 @@ class AddTicketScreen extends StatelessWidget {
                       onChanged: (selected) {
                         controller.onFaultSelected(selected?.intLookupId);
                       },
+                      readOnly: controller.isResolvingDeviceData.value,
                     );
                   }),
 
@@ -254,10 +237,24 @@ class AddTicketScreen extends StatelessWidget {
 
                   const SizedBox(height: 25),
                   SubmitButtonWidget(controller: controller),
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
+            Obx(() {
+              if (!controller.isLoadingCustomerDependencies.value &&
+                  !controller.isResolvingDeviceData.value) {
+                return const SizedBox.shrink();
+              }
+
+              return _FormLoadingOverlay(
+                message: controller.isResolvingDeviceData.value
+                    ? 'Loading device details...'
+                    : 'Loading customer data...',
+              );
+            }),
+          ],
         );
       }),
     );
@@ -268,7 +265,8 @@ class DropdownFieldCustomerWidget extends StatelessWidget {
   final String label;
   final IconData icon;
   final LookupDatum? value;
-  final Function(LookupDatum?) onChanged;
+  final Future<void> Function(LookupDatum?) onChanged;
+  final bool enabled;
 
   DropdownFieldCustomerWidget({
     super.key,
@@ -276,6 +274,7 @@ class DropdownFieldCustomerWidget extends StatelessWidget {
     required this.icon,
     this.value,
     required this.onChanged,
+    this.enabled = true,
   });
 
   final defaultPageSize = 20;
@@ -291,6 +290,7 @@ class DropdownFieldCustomerWidget extends StatelessWidget {
       child: DropdownSearch<LookupDatum>(
         validator: (value) => Validation.isRequired(value?.strLookupText),
         key: controller.dropdownKey,
+        enabled: enabled,
         items: (String? filter, LoadProps? loadProps) async {
           final skip = loadProps?.skip ?? 0; // how many items already loaded
           final take =
@@ -311,14 +311,16 @@ class DropdownFieldCustomerWidget extends StatelessWidget {
         itemAsString: (LookupDatum? item) => item?.strLookupText ?? '',
         selectedItem: value != null
             ? LookupDatum(
-                intLookupId: value!.strLookupId,
+                intLookupId: value!.intLookupId,
                 strLookupId: value!.strLookupId,
                 strLookupText: value!.strLookupText,
               )
             : null,
-        onChanged: (LookupDatum? selected) {
-          onChanged(selected);
-        },
+        onChanged: enabled
+            ? (LookupDatum? selected) async {
+                await onChanged(selected);
+              }
+            : null,
 
         popupProps: PopupProps.dialog(
           fit: FlexFit.loose,
@@ -364,6 +366,7 @@ class DropdownFieldCustomerWidget extends StatelessWidget {
         decoratorProps: DropDownDecoratorProps(
           decoration: InputDecoration(
             labelText: label,
+            hintText: enabled ? null : 'Please wait...',
             prefixIcon: Icon(icon, color: ColorApp.primary),
             filled: true,
             fillColor: isDark ? theme.colorScheme.surface : Colors.grey.shade50,
@@ -373,6 +376,10 @@ class DropdownFieldCustomerWidget extends StatelessWidget {
               borderSide: const BorderSide(color: Color(0xFFBBDEFB)),
             ),
             enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFBBDEFB)),
+            ),
+            disabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFBBDEFB)),
             ),
@@ -460,7 +467,11 @@ class LocationSectionWidget extends StatelessWidget {
                               .toList(),
                           onChanged: controller.onAreaSelected,
                           readOnly:
-                              controller.lockFieldsAfterSerialSelection.value,
+                              controller.lockFieldsAfterSerialSelection.value ||
+                              controller.shouldLockDependentFields,
+                          hintText: controller.hasCustomerSelected
+                              ? null
+                              : 'Select customer first',
                         ),
                       ),
 
@@ -480,11 +491,13 @@ class LocationSectionWidget extends StatelessWidget {
                           items: controller.subAreas
                               .map((e) => e.strLookupText)
                               .toList(),
-                          onChanged: (p0) {
-                            controller.onSubAreaSelected(p0);
-                          },
+                          onChanged: controller.onSubAreaSelected,
                           readOnly:
-                              controller.lockFieldsAfterSerialSelection.value,
+                              controller.lockFieldsAfterSerialSelection.value ||
+                              controller.shouldLockDependentFields,
+                          hintText: controller.hasCustomerSelected
+                              ? null
+                              : 'Select customer first',
                         ),
                       ),
 
@@ -508,6 +521,9 @@ class LocationSectionWidget extends StatelessWidget {
                               ? [controller.zone.value!.intZoneId.toString()]
                               : [],
                           onChanged: controller.onZoneSelected,
+                          hintText: controller.hasCustomerSelected
+                              ? 'Auto-filled'
+                              : 'Select customer first',
                         ),
                       ),
                     ],
@@ -534,7 +550,9 @@ class SubmitButtonWidget extends StatelessWidget {
         width: double.infinity,
         height: 55,
         child: ElevatedButton.icon(
-          onPressed: controller.isLoadingSubmit.value
+          onPressed: controller.isLoadingSubmit.value ||
+                  controller.isLoadingCustomerDependencies.value ||
+                  controller.isResolvingDeviceData.value
               ? null
               : () async {
                   await controller.insertTicket();
@@ -578,6 +596,7 @@ class DropdownFieldWidget extends StatelessWidget {
   final Function(String?) onChanged;
   final bool readOnly;
   final bool required;
+  final String? hintText;
 
   const DropdownFieldWidget({
     super.key,
@@ -588,6 +607,7 @@ class DropdownFieldWidget extends StatelessWidget {
     required this.onChanged,
     this.readOnly = false,
     this.required = false,
+    this.hintText,
   });
 
   @override
@@ -645,6 +665,7 @@ class DropdownFieldWidget extends StatelessWidget {
         decoratorProps: DropDownDecoratorProps(
           decoration: InputDecoration(
             labelText: label,
+            hintText: hintText,
             prefixIcon: Icon(icon, color: ColorApp.primary),
             filled: true,
             fillColor: isDark ? theme.colorScheme.surface : Colors.grey.shade50,
@@ -690,6 +711,7 @@ class DropdownFieldWidget2 extends StatelessWidget {
   final List<LookupDatum> items;
   final Function(LookupDatum?) onChanged;
   final bool readOnly;
+  final String? hintText;
 
   const DropdownFieldWidget2({
     super.key,
@@ -699,6 +721,7 @@ class DropdownFieldWidget2 extends StatelessWidget {
     required this.items,
     required this.onChanged,
     this.readOnly = false,
+    this.hintText,
   });
 
   @override
@@ -759,6 +782,7 @@ class DropdownFieldWidget2 extends StatelessWidget {
         decoratorProps: DropDownDecoratorProps(
           decoration: InputDecoration(
             labelText: label,
+            hintText: hintText,
             prefixIcon: Icon(icon, color: ColorApp.primary),
             filled: true,
             fillColor: isDark ? theme.colorScheme.surface : Colors.grey.shade50,
@@ -844,6 +868,243 @@ class InputFieldWidget extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: ColorApp.primary, width: 1.5),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InitialLoadingView extends StatelessWidget {
+  const _InitialLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('Preparing the add ticket screen...'),
+        ],
+      ),
+    );
+  }
+}
+
+class _InitialErrorView extends StatelessWidget {
+  final AddTicketController controller;
+
+  const _InitialErrorView({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.cloud_off_rounded,
+                  size: 52,
+                  color: Colors.orange.shade700,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Screen data could not be loaded',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  controller.initializationError.value.isEmpty
+                      ? 'Please try again.'
+                      : controller.initializationError.value,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  style: ButtonStyle(
+                    backgroundColor: WidgetStatePropertyAll(ColorApp.primary)
+                  ),
+                  onPressed: controller.retryInitialLoad,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FormLoadingOverlay extends StatelessWidget {
+  final String message;
+
+  const _FormLoadingOverlay({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: AbsorbPointer(
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.08),
+          alignment: Alignment.center,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 14),
+                Text(message),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CustomerDependencyHint extends StatelessWidget {
+  final AddTicketController controller;
+
+  const _CustomerDependencyHint({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final hint = !controller.hasCustomerSelected
+          ? 'Choose a customer first to load area, device reference, serial, and sub product data.'
+          : controller.isLoadingCustomerDependencies.value
+          ? 'Loading customer-related fields...'
+          : null;
+
+      if (hint == null) {
+        return const SizedBox(height: 8);
+      }
+
+      return Padding(
+        padding: const EdgeInsets.only(top: 4, bottom: 8),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: ColorApp.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: ColorApp.primary.withValues(alpha: 0.2)),
+          ),
+          child: Text(
+            hint,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+      );
+    });
+  }
+}
+
+
+class _SectionStatusCard extends StatelessWidget {
+  final String title;
+  final String message;
+  final bool isLoading;
+  final bool isActive;
+
+  const _SectionStatusCard({
+    required this.title,
+    required this.message,
+    required this.isLoading,
+    required this.isActive,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final baseColor = isLoading
+        ? Colors.orange
+        : isActive
+        ? Colors.green
+        : ColorApp.primary;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: baseColor.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: baseColor.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: isLoading
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: baseColor,
+                      ),
+                    )
+                  : Icon(
+                      isActive
+                          ? Icons.check_circle_outline
+                          : Icons.info_outline,
+                      size: 18,
+                      color: baseColor,
+                    ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    message,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -32,6 +32,7 @@ class ServiceRecordController extends GetxController {
 
   final TextEditingController repairNoteController = TextEditingController();
   final TextEditingController oldSerialNumber = TextEditingController();
+  final TextEditingController actualFault = TextEditingController();
 
   Rx<OpenServiceRecordModel?> openRecord = Rx<OpenServiceRecordModel?>(null);
   Rx<ResponseModel?> hardwareContent = Rx<ResponseModel?>(null);
@@ -185,6 +186,7 @@ class ServiceRecordController extends GetxController {
         signatureName: signatureName,
         intSolution: 0,
         serviceLocation: serviceLocation,
+        actualFault: actualFault.text,
       );
 
       if (success) {
